@@ -68,6 +68,7 @@ export async function saveMatchResult(input: MatchResultInput) {
       const rank = index + 1;
       const beforeScore = scoreByUser.get(player.userId) ?? 1000;
       const delta = ratingDelta({
+        currentScore: beforeScore,
         playerCount: rankedPlayers.length,
         rank,
         isWinner: player.userId === knownWinnerUserId,
@@ -119,26 +120,58 @@ export async function saveMatchResult(input: MatchResultInput) {
   return { skipped: false, ...result };
 }
 
-export function ratingDelta(input: { playerCount: number; rank: number; isWinner: boolean; isDraw: boolean }) {
+type RatingDeltaInput = {
+  currentScore: number;
+  playerCount: number;
+  rank: number;
+  isWinner: boolean;
+  isDraw: boolean;
+};
+
+type RatingTierRule = {
+  minScore: number;
+  win: number;
+  loss: number;
+  second: number;
+  third: number;
+  fourth: number;
+};
+
+const RATING_TIER_RULES: RatingTierRule[] = [
+  { minScore: 1800, win: 12, loss: -18, second: 4, third: -10, fourth: -18 },
+  { minScore: 1500, win: 16, loss: -14, second: 6, third: -8, fourth: -14 },
+  { minScore: 1200, win: 20, loss: -10, second: 8, third: -5, fourth: -10 },
+  { minScore: 1000, win: 22, loss: -8, second: 10, third: -4, fourth: -8 },
+  { minScore: 0, win: 26, loss: -6, second: 12, third: -3, fourth: -6 },
+];
+
+export function ratingDelta(input: RatingDeltaInput) {
   if (input.isDraw) {
     return 0;
   }
 
+  const rule = ratingRuleForScore(input.currentScore);
+
   if (input.playerCount <= 2) {
-    return input.isWinner ? 20 : -10;
+    return input.isWinner ? rule.win : rule.loss;
   }
 
   if (input.rank === 1) {
-    return 20;
+    return rule.win;
   }
 
   if (input.rank === 2) {
-    return 8;
+    return rule.second;
   }
 
   if (input.rank === 3) {
-    return -5;
+    return rule.third;
   }
 
-  return -10;
+  return rule.fourth;
+}
+
+function ratingRuleForScore(score: number) {
+  // 低段位降低失败成本、提高胜利收益；高段位反过来，控制高分膨胀。
+  return RATING_TIER_RULES.find((rule) => score >= rule.minScore) ?? RATING_TIER_RULES[RATING_TIER_RULES.length - 1];
 }

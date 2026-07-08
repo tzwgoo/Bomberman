@@ -15,12 +15,13 @@ describe("bomberman room", () => {
   beforeEach(async () => await colyseus.cleanup());
 
   it("calculates rating deltas from match rank", () => {
-    assert.strictEqual(ratingDelta({ playerCount: 2, rank: 1, isWinner: true, isDraw: false }), 20);
-    assert.strictEqual(ratingDelta({ playerCount: 2, rank: 2, isWinner: false, isDraw: false }), -10);
-    assert.strictEqual(ratingDelta({ playerCount: 4, rank: 2, isWinner: false, isDraw: false }), 8);
-    assert.strictEqual(ratingDelta({ playerCount: 4, rank: 3, isWinner: false, isDraw: false }), -5);
-    assert.strictEqual(ratingDelta({ playerCount: 4, rank: 4, isWinner: false, isDraw: false }), -10);
-    assert.strictEqual(ratingDelta({ playerCount: 2, rank: 1, isWinner: false, isDraw: true }), 0);
+    assert.strictEqual(ratingDelta({ currentScore: 800, playerCount: 2, rank: 1, isWinner: true, isDraw: false }), 26);
+    assert.strictEqual(ratingDelta({ currentScore: 800, playerCount: 2, rank: 2, isWinner: false, isDraw: false }), -6);
+    assert.strictEqual(ratingDelta({ currentScore: 1300, playerCount: 4, rank: 2, isWinner: false, isDraw: false }), 8);
+    assert.strictEqual(ratingDelta({ currentScore: 1300, playerCount: 4, rank: 3, isWinner: false, isDraw: false }), -5);
+    assert.strictEqual(ratingDelta({ currentScore: 1900, playerCount: 2, rank: 1, isWinner: true, isDraw: false }), 12);
+    assert.strictEqual(ratingDelta({ currentScore: 1900, playerCount: 4, rank: 4, isWinner: false, isDraw: false }), -18);
+    assert.strictEqual(ratingDelta({ currentScore: 1900, playerCount: 2, rank: 1, isWinner: false, isDraw: true }), 0);
   });
 
   async function startGameAfterCountdown(room: BombermanRoom, host: any, guest: any) {

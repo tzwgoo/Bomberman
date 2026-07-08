@@ -23,6 +23,7 @@ async function rebuildRatings() {
       for (const player of players) {
         const beforeScore = scoreByUser.get(player.userId) ?? INITIAL_SCORE;
         const delta = ratingDelta({
+          currentScore: beforeScore,
           playerCount: players.length,
           rank: player.rank,
           isWinner: player.userId === match.winnerUserId,
