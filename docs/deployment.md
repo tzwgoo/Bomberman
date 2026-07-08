@@ -1,66 +1,80 @@
-# Deployment Guide
+# 部署文档
 
-## 部署目标
+## 目标
 
-把项目部署成可公网访问的多人对战服务。
+从零开始部署 `Bomberman-Yokonex`，直到前端页面和后端服务都能访问。
 
-当前部署假设：
+本文覆盖两种情况：
 
-- 服务端：Node.js + Colyseus
-- 客户端：Vite 构建后的静态文件
-- 数据库：MySQL 8
-- ORM：Prisma
-- 进程管理：PM2 或系统服务
-- 反向代理：Nginx
+- 无域名：直接用服务器 IP + 端口访问。
+- 有域名：用 Nginx 反向代理访问。
 
-## 部署方式选择
-
-当前前端会按访问地址自动连接后端，也支持用环境变量显式指定：
-
-```txt
-本地 localhost / 127.0.0.1 -> http://127.0.0.1:5173
-生产环境未配置变量时 -> 当前域名
-```
-
-推荐生产环境显式配置：
-
-```env
-VITE_BACKEND_WS_URL="wss://api.example.com"
-VITE_BACKEND_HTTP_URL="https://api.example.com"
-```
-
-本地开发常用端口：
-
-```txt
-前端：http://127.0.0.1:5174
-后端：http://127.0.0.1:5173
-```
-
-本文下面同时给出两种部署方式。
-
-## 服务器准备
+## 1. 准备环境
 
 建议版本：
 
 ```txt
 Node.js 22
 MySQL 8
-Nginx
-PM2
+Git
 ```
 
-安装依赖：
+可选：
+
+```txt
+PM2
+Nginx
+```
+
+## 2. 克隆仓库
+
+```bash
+git clone https://github.com/tzwgoo/Bomberman.git
+cd Bomberman
+```
+
+## 3. 安装依赖
 
 ```bash
 npm run install:all
 ```
 
-## 环境变量
+这个命令会安装：
 
-复制服务端环境变量模板：
+- 根目录依赖
+- `server` 依赖
+- `client` 依赖
+
+## 4. 创建 MySQL 数据库
+
+登录 MySQL：
 
 ```bash
-copy server\.env.example server\.env
+mysql -uroot -p
+```
+
+创建数据库：
+
+```sql
+CREATE DATABASE IF NOT EXISTS bomberman_yokonex
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+退出 MySQL：
+
+```sql
+exit;
+```
+
+## 5. 配置后端环境变量
+
+复制模板：
+
+Windows PowerShell：
+
+```powershell
+Copy-Item server\.env.example server\.env
 ```
 
 Linux / macOS：
@@ -72,8 +86,8 @@ cp server/.env.example server/.env
 修改 `server/.env`：
 
 ```env
-DATABASE_URL="mysql://user:password@127.0.0.1:3306/bomberman_yokonex"
-JWT_SECRET="换成一段足够长的随机字符串"
+DATABASE_URL="mysql://root:root@127.0.0.1:3306/bomberman_yokonex"
+JWT_SECRET="请改成一段足够长的随机字符串"
 AUTH_REQUIRED_FOR_ROOMS="1"
 AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
 AUTH_SM4_IV="fedcba98765432100123456789abcdef"
@@ -87,68 +101,57 @@ AUTH_SM4_IV="fedcba98765432100123456789abcdef"
 - `AUTH_SM4_KEY`：注册 / 登录请求 SM4 解密密钥，必须是 32 位十六进制。
 - `AUTH_SM4_IV`：注册 / 登录请求 SM4 CBC IV，必须是 32 位十六进制。
 
-前端环境变量示例：
+`AUTH_SM4_KEY` 和 `AUTH_SM4_IV` 必须和前端构建配置保持一致。
 
-```env
-VITE_BACKEND_WS_URL="wss://api.example.com"
-VITE_BACKEND_HTTP_URL="https://api.example.com"
-VITE_AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
-VITE_AUTH_SM4_IV="fedcba98765432100123456789abcdef"
-```
+## 6. 初始化表结构
 
-`VITE_AUTH_SM4_KEY` / `VITE_AUTH_SM4_IV` 必须和服务端保持一致。
-
-> 注意：SM4 可以避免注册 / 登录请求体直接暴露明文，但正式环境仍必须使用 HTTPS。
-
-## 数据库
-
-创建数据库：
-
-```sql
-CREATE DATABASE bomberman_yokonex
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-```
-
-初始化表结构有两种方式，二选一。
-
-### 方式一：Prisma 迁移
-
-生成 Prisma Client：
+推荐使用 Prisma 迁移。
 
 ```bash
 npm --prefix server run prisma:generate
-```
-
-执行生产迁移：
-
-```bash
 npm --prefix server exec prisma migrate deploy
 ```
 
-本地开发也可以用：
-
-```bash
-npm --prefix server run prisma:migrate
-```
-
-### 方式二：直接执行 DDL
-
-项目提供完整初始化 SQL：
-
-```txt
-docs/mysql-init.sql
-```
-
-执行示例：
+如果不想用 Prisma 迁移，也可以直接执行 DDL：
 
 ```bash
 mysql -uroot -p < docs/mysql-init.sql
 ```
 
-如果使用 DDL 初始化，不要在同一个空库上重复执行 `prisma migrate deploy`。
+注意：
 
-## 构建
+- `docs/mysql-init.sql` 已包含 `CREATE DATABASE` 和全部业务表。
+- Prisma 迁移和 DDL 二选一即可。
+- 不要在同一个空库上重复执行两套初始化。
+
+## 7. 无域名部署
+
+无域名时，假设服务器 IP 是：
+
+```txt
+192.168.1.10
+```
+
+你需要把下面命令里的 IP 换成自己的服务器 IP。
+
+### 7.1 配置前端环境变量
+
+在 `client` 目录创建 `.env.production`：
+
+```env
+VITE_BACKEND_WS_URL="ws://192.168.1.10:5173"
+VITE_BACKEND_HTTP_URL="http://192.168.1.10:5173"
+VITE_AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
+VITE_AUTH_SM4_IV="fedcba98765432100123456789abcdef"
+```
+
+说明：
+
+- `VITE_BACKEND_WS_URL`：Colyseus WebSocket 地址。
+- `VITE_BACKEND_HTTP_URL`：登录、注册、排行榜等 HTTP 接口地址。
+- `VITE_AUTH_SM4_KEY` / `VITE_AUTH_SM4_IV`：必须和服务端一致。
+
+### 7.2 构建项目
 
 ```bash
 npm run build
@@ -161,32 +164,7 @@ server/build
 client/dist
 ```
 
-## 启动服务端
-
-直接启动：
-
-```bash
-node server/build/index.js
-```
-
-使用 PM2：
-
-```bash
-pm2 start server/build/index.js --name bomberman-server
-pm2 save
-```
-
-默认服务端端口：
-
-```txt
-2567
-```
-
-也可以用环境变量指定：
-
-```bash
-PORT=5173 node server/build/index.js
-```
+### 7.3 启动后端
 
 Windows PowerShell：
 
@@ -195,34 +173,122 @@ $env:PORT="5173"
 node server/build/index.js
 ```
 
-## 方式一：同域部署
+Linux / macOS：
 
-同域部署是当前推荐方式。
-
-访问方式：
-
-```txt
-https://example.com
+```bash
+PORT=5173 node server/build/index.js
 ```
 
-部署结构：
+后端验证：
 
-```txt
-example.com          -> client/dist 静态文件
-example.com/auth     -> 反代到 server
-example.com/me       -> 反代到 server
-example.com/rooms    -> 反代到 server
-example.com/maps     -> 反代到 server
-example.com/matchmake -> 反代到 server WebSocket
+```bash
+curl http://192.168.1.10:5173/hello
 ```
 
-把 `client/dist` 放到：
+应该返回：
+
+```txt
+Bomberman Yokonex server is running.
+```
+
+### 7.4 启动前端静态服务
+
+简单方式：
+
+```bash
+npm --prefix client exec vite preview -- --host 0.0.0.0 --port 5174
+```
+
+访问：
+
+```txt
+http://192.168.1.10:5174
+```
+
+如果服务器有防火墙，需要放行：
+
+```txt
+5173 后端端口
+5174 前端端口
+```
+
+### 7.5 无域名的 EMS 设备限制
+
+EMS 设备连接使用浏览器 Web Bluetooth。
+
+浏览器限制：
+
+- `http://localhost`
+- `http://127.0.0.1`
+- `https://域名`
+
+如果你用 `http://服务器IP:5174` 访问，很多浏览器不会允许 Web Bluetooth。
+
+结论：
+
+- 无域名/IP 访问可以正常玩游戏。
+- 无域名/IP 访问不一定能连接 EMS 设备。
+- 需要 EMS 设备连接时，建议配置 HTTPS 域名。
+
+## 8. 有域名部署
+
+假设域名是：
+
+```txt
+example.com
+```
+
+推荐同域部署：
+
+```txt
+https://example.com           前端页面
+https://example.com/auth      后端接口
+https://example.com/matchmake WebSocket
+```
+
+### 8.1 前端生产环境变量
+
+同域部署可以不配置后端地址，让前端按当前域名访问。
+
+如果要显式配置：
+
+```env
+VITE_BACKEND_WS_URL="wss://example.com"
+VITE_BACKEND_HTTP_URL="https://example.com"
+VITE_AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
+VITE_AUTH_SM4_IV="fedcba98765432100123456789abcdef"
+```
+
+然后构建：
+
+```bash
+npm run build
+```
+
+### 8.2 启动后端
+
+后端监听本机端口：
+
+```bash
+PORT=5173 node server/build/index.js
+```
+
+使用 PM2：
+
+```bash
+PORT=5173 pm2 start server/build/index.js --name bomberman-server
+pm2 save
+```
+
+### 8.3 Nginx 配置
+
+把前端构建产物放到：
 
 ```txt
 /var/www/bomberman/client
 ```
 
-Nginx 配置：
+Nginx 示例：
 
 ```nginx
 server {
@@ -237,37 +303,37 @@ server {
     }
 
     location /auth/ {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /me {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /leaderboard {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /rooms/ {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /maps/ {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /matchmake/ {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header Upgrade $http_upgrade;
@@ -276,73 +342,37 @@ server {
 }
 ```
 
-如果 WebSocket 连接失败，需要补充 Colyseus 房间 WebSocket 路径反代。
+正式环境建议再配置 HTTPS。
 
-## 方式二：前后端分域部署
+如果页面是 HTTPS，WebSocket 必须使用 `wss://`，不能使用 `ws://`。
 
-分域部署适合前端静态站点和后端服务分开托管。
+## 9. 分域部署
 
-访问方式示例：
+示例：
 
 ```txt
 前端：https://app.example.com
 后端：https://api.example.com
 ```
 
-### 分域部署前置改动
-
-当前 `client/src/backend.ts` 默认连接当前域名。
-
-前端构建时配置：
+前端 `.env.production`：
 
 ```env
 VITE_BACKEND_WS_URL="wss://api.example.com"
 VITE_BACKEND_HTTP_URL="https://api.example.com"
+VITE_AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
+VITE_AUTH_SM4_IV="fedcba98765432100123456789abcdef"
 ```
 
-服务端还需要允许前端域名跨域访问。
+后端需要允许前端跨域。
 
-示例：
-
-```ts
-app.use(cors({ origin: "https://app.example.com" }));
-```
-
-如果使用环境变量，可以配置：
+如果后续配置了跨域白名单，可以设置：
 
 ```env
 CLIENT_ORIGIN="https://app.example.com"
 ```
 
-### 前端 Nginx 示例
-
-把 `client/dist` 放到：
-
-```txt
-/var/www/bomberman/client
-```
-
-Nginx 配置：
-
-```nginx
-server {
-    listen 80;
-    server_name app.example.com;
-
-    root /var/www/bomberman/client;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-### 后端 Nginx 示例
-
-服务端仍然监听本机 `2567`。
-
-Nginx 配置：
+后端 Nginx 示例：
 
 ```nginx
 server {
@@ -350,7 +380,7 @@ server {
     server_name api.example.com;
 
     location / {
-        proxy_pass http://127.0.0.1:2567;
+        proxy_pass http://127.0.0.1:5173;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -360,75 +390,72 @@ server {
 }
 ```
 
-如果开启 HTTPS：
+## 10. 验证流程
 
-```txt
-前端使用 https://app.example.com
-后端 WebSocket 使用 wss://api.example.com
-```
-
-不要在 HTTPS 页面里连接 `ws://`，浏览器会拦截不安全连接。
-
-## 验证
-
-检查服务端：
+### 10.1 服务端
 
 ```bash
-curl http://127.0.0.1:2567/hello
+curl http://127.0.0.1:5173/hello
 ```
 
-检查数据库迁移：
+### 10.2 数据库
 
 ```bash
 npm --prefix server exec prisma migrate status
 ```
 
-检查构建：
+### 10.3 前端
 
-```bash
-npm run build
-npm --prefix server test
-```
+打开页面后检查：
 
-浏览器验证：
+1. 注册账号。
+2. 登录账号。
+3. 创建房间。
+4. 两个账号进入同一房间。
+5. 完成一局。
+6. 打开个人信息，查看战绩是否更新。
 
-1. 打开站点首页。
-2. 注册账号。
-3. 登录账号。
-4. 创建房间。
-5. 两个账号完成一局。
-6. 回到个人信息页，刷新账号战绩。
+### 10.4 EMS 设备
 
-## 常见问题
+1. 使用 Chrome 或 Edge。
+2. 用 HTTPS 域名访问页面，或在本机用 `localhost` / `127.0.0.1` 访问。
+3. 首页点击 `设备连接`。
+4. 点击 `连接EMS`。
+5. 浏览器弹窗里选择 EMS 设备。
+
+## 11. 常见问题
 
 ### 注册提示数据库未配置
 
-检查 `server/.env` 是否存在。
+检查：
 
-检查 `DATABASE_URL` 是否正确。
+- `server/.env` 是否存在。
+- `DATABASE_URL` 是否正确。
+- 服务端是否已重启。
+
+### 前端访问接口 404
+
+检查前端构建时的地址：
+
+```env
+VITE_BACKEND_HTTP_URL="http://服务器IP:5173"
+VITE_BACKEND_WS_URL="ws://服务器IP:5173"
+```
+
+如果改过 `.env.production`，需要重新执行：
+
+```bash
+npm run build
+```
 
 ### 登录成功但进房失败
 
-同域部署时，检查客户端和服务端是否同域。
-
-检查 Nginx 是否正确反代 `/matchmake/`。
-
-分域部署时，检查：
-
-- `VITE_BACKEND_WS_URL` 是否是 `wss://api.example.com`。
-- `VITE_BACKEND_HTTP_URL` 是否是 `https://api.example.com`。
-- 服务端是否允许 `https://app.example.com` 跨域访问。
-
-### 设备连接按钮没有弹出蓝牙选择框
-
-EMS 设备连接使用浏览器 Web Bluetooth。
-
 检查：
 
-- 浏览器使用 Chrome 或 Edge。
-- 本地开发使用 `http://127.0.0.1` 或 `http://localhost`。
-- 正式环境必须使用 HTTPS。
-- 设备已开机，并且没有被其他程序占用。
+- 后端端口是否能访问。
+- `VITE_BACKEND_WS_URL` 是否正确。
+- Nginx 是否正确反代 WebSocket。
+- HTTPS 页面是否使用了 `wss://`。
 
 ### 对局结束没有战绩
 
@@ -441,6 +468,16 @@ Match persistence skipped database_not_configured
 ```
 
 说明服务端没有读到 `DATABASE_URL`。
+
+### EMS 设备连接按钮没有弹出蓝牙选择框
+
+检查：
+
+- 浏览器是否是 Chrome 或 Edge。
+- 是否使用 HTTPS。
+- 如果没有域名，是否是在本机用 `localhost` 或 `127.0.0.1` 打开。
+- 设备是否已开机。
+- 设备是否被其他程序占用。
 
 ### 正式服还能游客进房
 
