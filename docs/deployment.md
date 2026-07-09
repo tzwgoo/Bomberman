@@ -134,13 +134,25 @@ mysql -uroot -p < docs/mysql-init.sql
 
 你需要把下面命令里的 IP 换成自己的服务器 IP。
 
+推荐入口：
+
+```txt
+http://192.168.1.10:45179
+```
+
+这个端口由 Nginx 对外提供：
+
+- 页面静态文件：直接从 `client/dist` 读取。
+- 接口后缀：转发到后端 `127.0.0.1:45170`。
+- WebSocket：`/matchmake/` 转发到后端 `127.0.0.1:45170`。
+
 ### 7.1 配置前端环境变量
 
 在 `client` 目录创建 `.env.production`：
 
 ```env
-VITE_BACKEND_WS_URL="ws://192.168.1.10:45170"
-VITE_BACKEND_HTTP_URL="http://192.168.1.10:45170"
+VITE_BACKEND_WS_URL="ws://192.168.1.10:45179"
+VITE_BACKEND_HTTP_URL="http://192.168.1.10:45179"
 VITE_AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
 VITE_AUTH_SM4_IV="fedcba98765432100123456789abcdef"
 ```
@@ -150,6 +162,12 @@ VITE_AUTH_SM4_IV="fedcba98765432100123456789abcdef"
 - `VITE_BACKEND_WS_URL`：Colyseus WebSocket 地址。
 - `VITE_BACKEND_HTTP_URL`：登录、注册、排行榜等 HTTP 接口地址。
 - `VITE_AUTH_SM4_KEY` / `VITE_AUTH_SM4_IV`：必须和服务端一致。
+
+注意：
+
+- 这里写 `45179`，不是 `45170`。
+- 浏览器只访问 Nginx。
+- Nginx 再把 `/auth`、`/rooms`、`/matchmake` 等接口转到后端。
 
 ### 7.2 构建项目
 
@@ -191,12 +209,79 @@ curl http://192.168.1.10:45170/hello
 Bomberman Yokonex server is running.
 ```
 
-### 7.4 启动前端静态服务
+### 7.4 配置 Nginx 对外入口
 
-简单方式：
+创建 Nginx 配置：
 
 ```bash
-npm --prefix client exec vite preview -- --host 0.0.0.0 --port 45179
+sudo nano /etc/nginx/conf.d/bomberman.conf
+```
+
+写入：
+
+```nginx
+server {
+    listen 45179;
+    server_name _;
+
+    root /opt/Bomberman/client/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /hello {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /auth/ {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /me {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /leaderboard {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /rooms/ {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /maps/ {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /matchmake/ {
+        proxy_pass http://127.0.0.1:45170;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+检查并重载 Nginx：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
 访问：
@@ -208,9 +293,10 @@ http://192.168.1.10:45179
 如果服务器有防火墙，需要放行：
 
 ```txt
-45170 后端端口
 45179 前端端口
 ```
+
+`45170` 可以不对公网放行，只给本机 Nginx 访问。
 
 ### 7.5 无域名的 EMS 设备限制
 
@@ -438,8 +524,8 @@ npm --prefix server exec prisma migrate status
 检查前端构建时的地址：
 
 ```env
-VITE_BACKEND_HTTP_URL="http://服务器IP:45170"
-VITE_BACKEND_WS_URL="ws://服务器IP:45170"
+VITE_BACKEND_HTTP_URL="http://服务器IP:45179"
+VITE_BACKEND_WS_URL="ws://服务器IP:45179"
 ```
 
 如果改过 `.env.production`，需要重新执行：
