@@ -15,10 +15,14 @@
   "author": "Endel Dreyer",
   "license": "MIT",
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "typescript": "^5.9.3",
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
     "@colyseus/sdk": "^0.17.0",
     "phaser": "^3.55.2",
     "sm-crypto": "^0.4.0"

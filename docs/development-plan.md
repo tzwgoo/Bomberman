@@ -89,6 +89,8 @@ npm --prefix server test
 - 本地个人信息和本地战绩将迁移到 MySQL
 - 阶段 12 账号系统和数据持久化
 - 阶段 13 积分 / 排名系统基础能力
+- 阶段 15 Android 调试包基础能力
+- 阶段 15 iOS 依赖和打包文档准备
 
 验证方式：
 
@@ -552,6 +554,17 @@ match_players
 ## 阶段 15：Capacitor App
 
 目标：打包成 Android / iOS App。
+
+当前进度：
+
+- 已接入 Capacitor Android。
+- 已生成 Android 工程。
+- 已支持 MuMu 模拟器访问电脑本机后端。
+- 已构建 Android Debug APK。
+- 已安装到 MuMu 模拟器并完成启动烟测。
+- 已安装 Capacitor iOS 依赖。
+- 已补充 iOS 打包说明：`docs/ios-build.md`。
+- iOS 工程生成、模拟器运行和真机签名需要 Mac / Xcode 环境继续处理。
 
 开发内容：
 
