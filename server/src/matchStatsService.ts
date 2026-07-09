@@ -1,4 +1,4 @@
-import { isDatabaseConfigured, prisma } from "./db";
+import { isDatabaseConfigured, prisma } from "./db.js";
 
 export type PlayerStatsDto = {
   matches: number;

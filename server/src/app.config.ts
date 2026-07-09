@@ -4,13 +4,13 @@ import express from "express";
 /**
  * Import your Room files
  */
-import { Part1Room } from "./rooms/Part1Room";
-import { Part2Room } from "./rooms/Part2Room";
-import { Part3Room } from "./rooms/Part3Room";
-import { Part4Room } from "./rooms/Part4Room";
-import { BombermanRoom } from "./rooms/BombermanRoom";
-import { BOMBERMAN_MAPS } from "./rooms/BombermanMaps";
-import { registerAuthRoutes } from "./authRoutes";
+import { Part1Room } from "./rooms/Part1Room.js";
+import { Part2Room } from "./rooms/Part2Room.js";
+import { Part3Room } from "./rooms/Part3Room.js";
+import { Part4Room } from "./rooms/Part4Room.js";
+import { BombermanRoom } from "./rooms/BombermanRoom.js";
+import { BOMBERMAN_MAPS } from "./rooms/BombermanMaps.js";
+import { registerAuthRoutes } from "./authRoutes.js";
 
 const server = defineServer({
     rooms: {

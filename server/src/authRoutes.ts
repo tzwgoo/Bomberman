@@ -1,8 +1,8 @@
 import type { Application, Request, Response } from "express";
 
-import { decryptAuthPayload } from "./authCrypto";
-import { AuthError, getUserByToken, loginUser, registerUser, serializeUser, updateUserProfile } from "./authService";
-import { getLeaderboard, getUserStats } from "./matchStatsService";
+import { decryptAuthPayload } from "./authCrypto.js";
+import { AuthError, getUserByToken, loginUser, registerUser, serializeUser, updateUserProfile } from "./authService.js";
+import { getLeaderboard, getUserStats } from "./matchStatsService.js";
 
 type AuthedRequest = Request & {
   authUserId?: string;

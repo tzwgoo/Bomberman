@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
-import { isDatabaseConfigured, prisma } from "./db";
-import { tierForScore } from "./matchStatsService";
+import { isDatabaseConfigured, prisma } from "./db.js";
+import { tierForScore } from "./matchStatsService.js";
 
 export type MatchResultPlayer = {
   sessionId: string;

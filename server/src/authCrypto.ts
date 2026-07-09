@@ -1,6 +1,6 @@
 import smCrypto from "sm-crypto";
 
-import { AuthError } from "./authService";
+import { AuthError } from "./authService.js";
 
 type EncryptedAuthRequest = {
   encrypted?: string;

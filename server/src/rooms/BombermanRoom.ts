@@ -1,9 +1,9 @@
 import { Client, Room } from "colyseus";
 import { MapSchema, Schema, type } from "@colyseus/schema";
 
-import { verifyAuthToken, type AuthRoomUser } from "../authService";
-import { saveMatchResult } from "../matchPersistence";
-import { DEFAULT_BOMBERMAN_MAP_ID, resolveBombermanMap, type BombermanMapDefinition } from "./BombermanMaps";
+import { verifyAuthToken, type AuthRoomUser } from "../authService.js";
+import { saveMatchResult } from "../matchPersistence.js";
+import { DEFAULT_BOMBERMAN_MAP_ID, resolveBombermanMap, type BombermanMapDefinition } from "./BombermanMaps.js";
 
 export interface BombermanInput {
   left: boolean;

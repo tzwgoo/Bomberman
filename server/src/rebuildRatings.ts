@@ -1,7 +1,7 @@
 import "dotenv/config";
 
-import { prisma } from "./db";
-import { ratingDelta } from "./matchPersistence";
+import { prisma } from "./db.js";
+import { ratingDelta } from "./matchPersistence.js";
 
 const INITIAL_SCORE = 1000;
 

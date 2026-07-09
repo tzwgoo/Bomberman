@@ -9,7 +9,7 @@
 import { listen } from "@colyseus/tools";
 
 // Import arena config
-import appConfig from "./app.config";
+import appConfig from "./app.config.js";
 
 // 默认使用项目约定的后端端口，也允许部署时通过 PORT 覆盖。
 process.env.PORT ||= "45170";

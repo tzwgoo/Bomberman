@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { User } from "@prisma/client";
 
-import { isDatabaseConfigured, jwtSecret, prisma } from "./db";
+import { isDatabaseConfigured, jwtSecret, prisma } from "./db.js";
 
 export type AuthUserDto = {
   id: string;
