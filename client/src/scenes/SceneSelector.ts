@@ -192,9 +192,7 @@ export class SceneSelector extends Phaser.Scene {
                         <option value="command_websocket" ${connection.transport === "command_websocket" ? "selected" : ""}>YYC-DJ 指令 WebSocket</option>
                     </select>
                 </label>
-                <label data-role="websocket-field">WebSocket 服务地址
-                    <input data-role="websocket-url" value="${escapeHtml(connection.websocketUrl)}" placeholder="wss://ws.example.com" />
-                </label>
+                <input type="hidden" data-role="websocket-url" value="${escapeHtml(connection.websocketUrl)}" />
                 <div class="device-command-fields" data-role="command-websocket-field">
                     <label>UID
                         <input data-role="command-uid" value="${escapeHtml(connection.commandUid)}" placeholder="123456 或 game_123456" />
@@ -216,7 +214,6 @@ export class SceneSelector extends Phaser.Scene {
         this.deviceModal = modal;
 
         const transport = modal.querySelector<HTMLSelectElement>("[data-role='device-transport']")!;
-        const websocketField = modal.querySelector<HTMLElement>("[data-role='websocket-field']")!;
         const websocketUrl = modal.querySelector<HTMLInputElement>("[data-role='websocket-url']")!;
         const commandWebsocketField = modal.querySelector<HTMLElement>("[data-role='command-websocket-field']")!;
         const commandUid = modal.querySelector<HTMLInputElement>("[data-role='command-uid']")!;
@@ -224,7 +221,6 @@ export class SceneSelector extends Phaser.Scene {
         const status = modal.querySelector<HTMLElement>("[data-role='device-status']")!;
         const pairing = modal.querySelector<HTMLElement>("[data-role='device-pairing']")!;
         const updateMode = () => {
-            websocketField.hidden = transport.value !== "websocket";
             commandWebsocketField.hidden = transport.value !== "command_websocket";
         };
         const updateStatus = () => status.textContent = this.deviceStatusText();
