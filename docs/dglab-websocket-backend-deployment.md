@@ -361,226 +361,9 @@ pm2 describe dglab-socket
 
 日志目录已被官方仓库 `.gitignore` 忽略，不会进入 Git。
 
-## 14. 旧版本增量部署
+## 14. 常见问题
 
-### 14.1 升级前确认
-
-先确认服务器当前运行的是哪一种旧版：
-
-- v1：入口通常是 `socket/v1/BackEnd(Node)/websocketNode.js`，端口 `9999` 写死在源码中。
-- v2 旧提交：入口是 `socket/v2/backend/src/index.js`，端口来自 `.env` 或默认值 `9999`。
-- 自定义版本：先记录实际目录、启动命令、端口和 Nginx 上游，不要直接覆盖。
-
-检查 PM2、端口和 Nginx：
-
-```bash
-pm2 status
-pm2 describe dglab-socket
-ss -lntp | grep -E ':9999|:19999'
-sudo nginx -T | grep -n "proxy_pass"
-```
-
-如果旧进程名不是 `dglab-socket`，后续命令中的 `<旧进程名>` 必须替换为实际名称。
-
-升级会清空后端内存中的连接和配对关系。切换后，网页和 DG-LAB APP 需要重新连接并扫码。
-
-### 14.2 备份旧版本
-
-记录旧进程信息：
-
-```bash
-pm2 describe <旧进程名>
-pm2 logs <旧进程名> --lines 100
-```
-
-备份源码、配置和 Nginx：
-
-```bash
-sudo mkdir -p /opt/backups
-sudo cp -a /opt/dglab-websocket-simple /opt/backups/dglab-websocket-simple-before-v2
-sudo cp /etc/nginx/conf.d/dglab-websocket.conf /opt/backups/dglab-websocket.conf.before-v2
-```
-
-如果旧目录是 Git 仓库，再记录提交号：
-
-```bash
-cd /opt/dglab-websocket-simple
-git rev-parse HEAD
-git status --short
-```
-
-存在未提交修改时，不要直接执行 `git pull` 或切换提交。先单独备份并确认这些修改是否仍然需要。
-
-### 14.3 推荐方案：并行部署后切换
-
-该方案不覆盖旧目录。旧服务继续监听 `9999`，新 v2 服务先监听 `19999`。
-
-#### 14.3.1 部署新版本到独立目录
-
-```bash
-cd /opt
-sudo git clone https://github.com/dungeonlab-open/dglab-websocket-simple.git dglab-websocket-simple-v2
-sudo chown -R "$USER":"$USER" /opt/dglab-websocket-simple-v2
-cd /opt/dglab-websocket-simple-v2/socket/v2/backend
-npm ci --omit=dev
-```
-
-创建新版本 `.env`：
-
-```env
-PORT=19999
-HEARTBEAT_INTERVAL=30000
-DEFAULT_PUNISHMENT_TIME=1
-DEFAULT_PUNISHMENT_DURATION=5
-LOG_LEVEL=info
-VERBOSE=false
-```
-
-启动灰度进程：
-
-```bash
-pm2 start src/index.js --name dglab-socket-v2 --cwd /opt/dglab-websocket-simple-v2/socket/v2/backend
-pm2 logs dglab-socket-v2 --lines 100
-```
-
-检查新端口：
-
-```bash
-ss -lntp | grep 19999
-```
-
-#### 14.3.2 验证新进程
-
-在服务器执行：
-
-```bash
-cd /opt/dglab-websocket-simple-v2/socket/v2/backend
-npx wscat -c ws://127.0.0.1:19999
-```
-
-应立即收到包含以下字段的 JSON：
-
-```json
-{
-  "type": "bind",
-  "clientId": "UUID",
-  "targetId": "",
-  "message": "targetId"
-}
-```
-
-退出 `wscat` 后，检查新进程没有持续报错：
-
-```bash
-pm2 logs dglab-socket-v2 --lines 100
-tail -n 100 /opt/dglab-websocket-simple-v2/socket/v2/backend/logs/error.log
-```
-
-#### 14.3.3 切换 Nginx
-
-将 Nginx 中的上游从旧端口：
-
-```nginx
-proxy_pass http://127.0.0.1:9999;
-```
-
-改为新端口：
-
-```nginx
-proxy_pass http://127.0.0.1:19999;
-```
-
-检查并重载：
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-域名没有变化，因此 Bomberman 的 `VITE_DGLAB_WS_URL` 不需要修改，也不需要重新构建前端。
-
-Nginx 重载后，新连接进入 v2。已有 WebSocket 连接可能继续停留在旧进程，直到主动断开。建议安排玩家退出设备连接后再切换，并通知用户重新扫码。
-
-#### 14.3.4 观察和收尾
-
-完成一次真实流程验证：
-
-1. Bomberman 连接 `wss://dglab-ws.example.com`。
-2. 网页正常生成二维码。
-3. DG-LAB APP 扫码成功。
-4. 测试 A、B 通道强度。
-5. 测试一个游戏事件波形。
-6. 断开后服务端能够清理配对和波形定时器。
-
-建议保留旧进程至少一个观察周期。确认新版本稳定后再停止旧进程：
-
-```bash
-pm2 stop <旧进程名>
-pm2 delete <旧进程名>
-pm2 save
-```
-
-不要立即删除旧目录和备份。
-
-### 14.4 回滚并行部署
-
-如果新版本异常，将 Nginx 上游改回：
-
-```nginx
-proxy_pass http://127.0.0.1:9999;
-```
-
-然后执行：
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-pm2 restart <旧进程名>
-pm2 stop dglab-socket-v2
-```
-
-确认旧服务恢复后，再分析新版本日志。回滚也会导致当前连接断开，网页和 APP 需要重新扫码。
-
-### 14.5 可接受短暂停机时：v2 原地升级
-
-仅当现有服务已经是 `socket/v2/backend`，并且可以接受短时断开时使用：
-
-```bash
-cd /opt/dglab-websocket-simple
-git status --short
-git rev-parse HEAD
-git pull --ff-only
-cd socket/v2/backend
-npm ci --omit=dev
-pm2 restart dglab-socket --update-env
-pm2 logs dglab-socket --lines 100
-```
-
-原地升级前必须保存旧提交号。需要回滚时：
-
-```bash
-cd /opt/dglab-websocket-simple
-git switch --detach <旧提交号>
-cd socket/v2/backend
-npm ci --omit=dev
-pm2 restart dglab-socket --update-env
-```
-
-不要对存在未提交修改的生产目录执行上述回滚。优先恢复升级前的完整目录备份。
-
-### 14.6 从 v1 升级的额外注意事项
-
-- v1 的 `websocketNode.js` 固定监听 `9999`，不能通过 `.env` 改成灰度端口。
-- 应保持 v1 使用 `9999`，让新 v2 使用 `19999`，通过 Nginx 切换。
-- 不要把 v2 文件复制进 v1 目录，也不要复用 v1 的 `node_modules`。
-- v2 新增日志、配对管理、波形定时器清理和环境变量配置，应使用新的工作目录。
-- v1 和 v2 都只保存内存状态，切换时无法迁移现有配对。
-
-YYC-DJ 指令 WebSocket 与本次升级无关，不需要修改或部署。
-
-## 15. 常见问题
-
-### 15.1 网页提示连接失败
+### 14.1 网页提示连接失败
 
 依次检查：
 
@@ -593,11 +376,11 @@ sudo systemctl status nginx
 
 同时检查云安全组、域名解析和证书是否正常。
 
-### 15.2 HTTPS 页面无法连接 ws 地址
+### 14.2 HTTPS 页面无法连接 ws 地址
 
 这是浏览器的混合内容限制。HTTPS 页面必须使用 `wss://`，不能使用 `ws://`。
 
-### 15.3 能连接但 APP 无法扫码绑定
+### 14.3 能连接但 APP 无法扫码绑定
 
 检查：
 
@@ -607,11 +390,11 @@ sudo systemctl status nginx
 - Nginx 已转发 `Upgrade` 和 `Connection` 请求头。
 - APP 和网页连接的是同一个 WebSocket 后端。
 
-### 15.4 连接后立即断开
+### 14.4 连接后立即断开
 
 检查 Nginx 的 `proxy_read_timeout`。建议不低于 `120s`，应大于服务端心跳间隔。
 
-### 15.5 错误码
+### 14.5 错误码
 
 | 错误码 | 含义 |
 | --- | --- |
@@ -625,7 +408,7 @@ sudo systemctl status nginx
 | `406` | 波形消息缺少通道 |
 | `500` | 服务端内部异常 |
 
-### 15.6 日志目录没有生成
+### 14.6 日志目录没有生成
 
 确认 PM2 的 `cwd` 是：
 
@@ -635,7 +418,7 @@ sudo systemctl status nginx
 
 并确认运行用户对该目录有写权限。
 
-## 16. 后续更新
+## 15. 后续更新
 
 更新：
 
@@ -656,7 +439,7 @@ git rev-parse HEAD
 
 如果新版本异常，可以切回已验证的提交，再重新安装依赖和重启 PM2。不要在存在本地修改时强制切换版本。
 
-## 17. 官方资料
+## 16. 官方资料
 
 - [dglab-websocket-simple 仓库](https://github.com/dungeonlab-open/dglab-websocket-simple)
 - [SOCKET 控制协议 v2](https://github.com/dungeonlab-open/dglab-websocket-simple/blob/main/socket/v2/README.md)

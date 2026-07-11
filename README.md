@@ -123,6 +123,7 @@ CREATE DATABASE bomberman_yokonex
 
 - 开发计划：[docs/development-plan.md](docs/development-plan.md)
 - 部署文档：[docs/deployment.md](docs/deployment.md)
+- 游戏增量部署：[docs/incremental-deployment.md](docs/incremental-deployment.md)
 - DG-LAB WebSocket 后端部署：[docs/dglab-websocket-backend-deployment.md](docs/dglab-websocket-backend-deployment.md)
 - 参考项目：[docs/references.md](docs/references.md)
 
