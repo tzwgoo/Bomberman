@@ -47,6 +47,10 @@ export class SceneSelector extends Phaser.Scene {
         this.drawBackground();
         this.drawHeader();
         this.drawMenu();
+        if (window.sessionStorage.getItem("bomberman:open-device") === "1") {
+            window.sessionStorage.removeItem("bomberman:open-device");
+            this.showDeviceModal();
+        }
     }
 
     drawBackground() {

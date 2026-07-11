@@ -161,6 +161,7 @@ export class BombermanScene extends Phaser.Scene {
         this.createPowerUpPanel();
         this.createEmsPanel();
         emsFeedbackController.onBatteryChange = (batteryLevel) => this.reportEmsBattery(batteryLevel);
+        emsFeedbackController.onStatusChange = () => this.handleEmsConnectionChange();
         this.createNetworkBanner();
         this.createTouchControls();
         this.setupHudLayout();
@@ -175,6 +176,9 @@ export class BombermanScene extends Phaser.Scene {
             this.destroyEmsPanel();
             if (emsFeedbackController.onBatteryChange) {
                 emsFeedbackController.onBatteryChange = undefined;
+            }
+            if (emsFeedbackController.onStatusChange) {
+                emsFeedbackController.onStatusChange = undefined;
             }
             this.destroyMatchPanel();
             this.destroyNetworkBanner();
@@ -423,6 +427,7 @@ export class BombermanScene extends Phaser.Scene {
         }
 
         const config = emsFeedbackController.config;
+        const deviceConnected = emsFeedbackController.connected;
         this.emsPanel.innerHTML = `
             <div class="ems-card">
                 <header>
@@ -441,7 +446,7 @@ export class BombermanScene extends Phaser.Scene {
                         强度上限
                         <input type="number" min="0" max="200" data-role="ems-max-strength" value="${config.maxStrength}" />
                     </label>
-                    <button data-action="ems-connect">连接DG-LAB</button>
+                    <button ${deviceConnected ? "class=\"ems-device-connected\" disabled" : "data-action=\"ems-open-device\""}>${deviceConnected ? "已连接" : "连接设备"}</button>
                     <span data-role="ems-status">${emsFeedbackController.status}</span>
                 </div>
                 <div class="ems-rule-list">
@@ -493,8 +498,8 @@ export class BombermanScene extends Phaser.Scene {
             return;
         }
 
-        if (action === "ems-connect") {
-            await this.connectEmsDevice();
+        if (action === "ems-open-device") {
+            await this.openDeviceConnection();
             return;
         }
 
@@ -513,19 +518,66 @@ export class BombermanScene extends Phaser.Scene {
         }
     }
 
-    async connectEmsDevice() {
-        if (emsFeedbackController.config.connection.transport !== "ble") {
-            this.setEmsStatus("请在首页“设备连接”中完成 WebSocket 配置");
+    async openDeviceConnection() {
+        if (emsFeedbackController.connected) {
             return;
         }
-        this.setEmsStatus("正在连接...");
+
         try {
-            await emsFeedbackController.connect();
-            this.setEmsStatus(emsFeedbackController.status);
-            this.reportEmsBattery(emsFeedbackController.batteryLevel);
+            if (this.room) {
+                await this.leaveRoom();
+            }
+            // 主菜单创建完成后读取该标记并自动打开设备连接窗口。
+            window.sessionStorage.setItem("bomberman:open-device", "1");
+            window.history.replaceState(null, "", window.location.pathname);
+            this.scene.start("selector");
         } catch (error) {
-            this.setEmsStatus(error instanceof Error ? error.message : "EMS连接失败");
+            this.setEmsStatus(error instanceof Error ? error.message : "无法返回设备连接页面");
         }
+    }
+
+    syncEmsConnectionButton() {
+        const button = this.emsPanel?.querySelector<HTMLButtonElement>("[data-action='ems-open-device'], .ems-device-connected");
+        const status = this.emsPanel?.querySelector<HTMLElement>("[data-role='ems-status']");
+        if (status) {
+            status.textContent = emsFeedbackController.status;
+        }
+        if (!button) {
+            return;
+        }
+
+        const deviceConnected = emsFeedbackController.connected;
+        button.textContent = deviceConnected ? "已连接" : "连接设备";
+        button.disabled = deviceConnected;
+        button.classList.toggle("ems-device-connected", deviceConnected);
+        if (deviceConnected) {
+            button.removeAttribute("data-action");
+        } else {
+            button.dataset.action = "ems-open-device";
+        }
+    }
+
+    handleEmsConnectionChange() {
+        this.syncEmsConnectionButton();
+        if (emsFeedbackController.connected || !this.room || this.room.state.phase !== "lobby") {
+            return;
+        }
+
+        const localPlayer = this.room.state.players.get(this.room.sessionId);
+        if (localPlayer?.ready) {
+            // 设备断开后立即撤销准备，避免其他玩家把无设备客户端带入对局。
+            this.room.send("setReady", false);
+            this.setLobbyMessage("设备已断开，已自动取消准备，请重新连接设备");
+        }
+    }
+
+    requireConnectedEmsDevice() {
+        if (emsFeedbackController.connected) {
+            return true;
+        }
+
+        this.setLobbyMessage("未连接反馈设备，请先在“硬件反馈”中点击“连接设备”");
+        return false;
     }
 
     async testEmsRule(rule: EmsFeedbackRule) {
@@ -852,8 +904,16 @@ export class BombermanScene extends Phaser.Scene {
         } else if (action === "refresh") {
             await this.refreshRoomList();
         } else if (action === "ready") {
+            const room = this.room;
+            const localPlayer = room?.state.players.get(room.sessionId);
+            if (!localPlayer?.ready && !this.requireConnectedEmsDevice()) {
+                return;
+            }
             this.toggleReady();
         } else if (action === "start") {
+            if (!this.requireConnectedEmsDevice()) {
+                return;
+            }
             this.room?.send("startGame");
         } else if (action === "leave") {
             await this.leaveRoom();

@@ -130,6 +130,11 @@ class EmsFeedbackController {
         return transport !== "ble" || Boolean((navigator as any).bluetooth);
     }
 
+    get connected() {
+        // 只有设备真正可发送反馈时才显示为已连接，WebSocket 建连但未完成绑定不算。
+        return this.isReady();
+    }
+
     saveConnection(connection: EmsConnectionConfig) {
         this.saveConfig({ ...this.config, connection });
     }
