@@ -367,7 +367,7 @@ npm --prefix server exec prisma migrate status
 3. DG-LAB 郊狼 3.0 能通过新 WebSocket 服务扫码连接。
 4. YYC-DJ 指令 WebSocket 能使用 UID、Token 登录。
 5. 放炸弹、爆炸、死亡、胜负和道具事件能触发对应反馈。
-6. 每个事件的 `commandId` 可以保存并发送。
+6. 每个事件都能按 [commandId 映射](command-id-event-mapping.md) 发送对应指令。
 7. 断开或切换设备后强度能够归零。
 
 ## 14. 回滚

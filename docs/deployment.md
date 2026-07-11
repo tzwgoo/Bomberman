@@ -322,7 +322,7 @@ VITE_DGLAB_WS_URL="wss://ws.example.com"
 
 YYC-DJ 指令服务使用文档给出的固定 `ws://` 地址，浏览器会在 HTTPS 页面阻止混合内容连接；请在 HTTP、localhost 或原生应用环境中使用。
 
-指令 WebSocket 的 `commandId` 在对战大厅“EMS反馈”中逐事件配置。默认使用事件名：`bomb_placed`、`bomb_exploded`、`death`、`round_win`、`round_lose`、`power_up`。
+指令 WebSocket 的 `commandId` 输入项已从对战大厅隐藏。默认值、触发条件和发送报文见 [commandId 与游戏事件映射](command-id-event-mapping.md)。
 
 浏览器限制：
 
