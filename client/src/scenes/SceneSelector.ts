@@ -204,7 +204,6 @@ export class SceneSelector extends Phaser.Scene {
                 <p class="device-status" data-role="device-status"></p>
                 <div class="device-pairing" data-role="device-pairing" hidden>
                     <img alt="DG-LAB APP 配对二维码" />
-                    <code></code>
                 </div>
                 <button data-action="device-connect">连接脉冲主机</button>
             </div>
@@ -231,7 +230,6 @@ export class SceneSelector extends Phaser.Scene {
                 return;
             }
             pairing.querySelector<HTMLImageElement>("img")!.src = await QRCode.toDataURL(pairingUrl, { width: 190, margin: 1 });
-            pairing.querySelector<HTMLElement>("code")!.textContent = pairingUrl;
         };
 
         // 首页负责选择连接方式和完成配对；事件强度仍在对战大厅中配置。
