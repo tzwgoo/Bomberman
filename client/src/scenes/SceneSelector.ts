@@ -215,6 +215,7 @@ export class SceneSelector extends Phaser.Scene {
             </div>
         `;
         document.body.appendChild(modal);
+        document.body.classList.add("device-modal-open");
         this.deviceModal = modal;
 
         const transport = modal.querySelector<HTMLSelectElement>("[data-role='device-transport']")!;
@@ -251,6 +252,7 @@ export class SceneSelector extends Phaser.Scene {
         void updatePairing();
 
         modal.addEventListener("click", async (event) => {
+            event.stopPropagation();
             const action = (event.target as HTMLElement).closest<HTMLElement>("[data-action]")?.dataset.action;
             if (action === "device-close") {
                 soundManager.play("button");
@@ -277,12 +279,15 @@ export class SceneSelector extends Phaser.Scene {
                 status.textContent = error instanceof Error ? error.message : "设备连接失败";
             }
         });
+        modal.addEventListener("pointerdown", (event) => event.stopPropagation());
+        modal.addEventListener("pointerup", (event) => event.stopPropagation());
         transport.addEventListener("change", updateMode);
     }
 
     destroyDeviceModal() {
         this.deviceModal?.remove();
         this.deviceModal = undefined;
+        document.body.classList.remove("device-modal-open");
         emsFeedbackController.onBatteryChange = undefined;
         emsFeedbackController.onStatusChange = undefined;
     }

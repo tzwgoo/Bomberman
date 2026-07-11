@@ -101,6 +101,7 @@ export class BombermanScene extends Phaser.Scene {
     soundEnabled = soundManager.isEnabled();
     powerUpToastTimer?: number;
     networkTimer?: number;
+    roomListRefreshTimer?: number;
     hudLayoutHandler?: () => void;
     lastRoundIntroSecond = 0;
     lastRoundStatus = "";
@@ -167,8 +168,16 @@ export class BombermanScene extends Phaser.Scene {
         this.setupHudLayout();
         this.startNetworkMonitor();
         this.refreshRoomList();
+        this.startRoomListRefresh();
         this.consumeAutoMatchRequest();
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.cancelRandomMatch();
+            const activeRoom = this.room;
+            if (activeRoom) {
+                this.intentionalLeaving = true;
+                this.room = undefined;
+                void activeRoom.leave();
+            }
             this.destroyHudLayout();
             this.destroyLobbyPanel();
             this.destroyResultPanel();
@@ -325,6 +334,10 @@ export class BombermanScene extends Phaser.Scene {
     }
 
     destroyLobbyPanel() {
+        if (this.roomListRefreshTimer) {
+            window.clearInterval(this.roomListRefreshTimer);
+            this.roomListRefreshTimer = undefined;
+        }
         this.lobbyPanel?.remove();
         this.lobbyPanel = undefined;
     }
@@ -1101,7 +1114,19 @@ export class BombermanScene extends Phaser.Scene {
         }
     }
 
-    async refreshRoomList() {
+    startRoomListRefresh() {
+        if (this.roomListRefreshTimer) {
+            window.clearInterval(this.roomListRefreshTimer);
+        }
+
+        this.roomListRefreshTimer = window.setInterval(() => {
+            if (!this.room && !this.matching && this.lobbyView === "rooms" && !document.hidden) {
+                void this.refreshRoomList(false);
+            }
+        }, 5000);
+    }
+
+    async refreshRoomList(updateMessage = true) {
         if (!this.roomListEl) {
             return;
         }
@@ -1110,9 +1135,13 @@ export class BombermanScene extends Phaser.Scene {
             const rooms = await this.fetchListedRooms();
             const listedRooms = rooms.filter((room) => room.metadata?.listed !== false);
             this.renderRoomList(listedRooms);
-            this.setLobbyMessage(listedRooms.length ? "" : "暂无可加入房间");
+            if (updateMessage) {
+                this.setLobbyMessage(listedRooms.length ? "" : "暂无可加入房间");
+            }
         } catch {
-            this.setLobbyMessage("服务暂不可用");
+            if (updateMessage) {
+                this.setLobbyMessage("服务暂不可用");
+            }
         }
     }
 
@@ -1122,6 +1151,12 @@ export class BombermanScene extends Phaser.Scene {
     }
 
     async useRoom(room: Room<BombermanRoom>) {
+        if (!this.scene.isActive("bomberman")) {
+            // 页面退出后才完成的创建或加入请求必须立即释放，避免服务器残留幽灵房间。
+            await room.leave();
+            return;
+        }
+
         this.room = room;
         this.intentionalLeaving = false;
         this.recordedMatchRoomId = "";
@@ -1400,7 +1435,8 @@ export class BombermanScene extends Phaser.Scene {
 
         try {
             const reconnectedRoom = await this.client.reconnect<BombermanRoom>(previousRoom.reconnectionToken);
-            if (this.room !== previousRoom) {
+            if (this.room !== previousRoom || !this.scene.isActive("bomberman")) {
+                await reconnectedRoom.leave();
                 return;
             }
 

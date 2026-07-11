@@ -41,13 +41,19 @@ document.querySelector<HTMLAnchorElement>("[data-action='main-menu']")?.addEvent
     window.history.replaceState(null, "", window.location.pathname);
 
     const bombermanScene = game.scene.getScene("bomberman") as BombermanScene;
-    if (game.scene.isActive("bomberman") && bombermanScene.room) {
-        await bombermanScene.leaveRoom();
+    try {
+        bombermanScene.cancelRandomMatch();
+        if (bombermanScene.room) {
+            await bombermanScene.leaveRoom();
+        }
+    } catch {
+        // 网络已经断开时无法等待正常离房，仍继续关闭本地场景。
+    } finally {
+        // 即使网络退出失败，也必须先关闭游戏场景，服务端会按断线流程清理房间。
+        game.scene.stop("profile");
+        game.scene.stop("leaderboard");
+        game.scene.stop("auth");
+        game.scene.stop("bomberman");
+        game.scene.start(isLoggedIn() ? "selector" : "auth");
     }
-
-    game.scene.stop("profile");
-    game.scene.stop("leaderboard");
-    game.scene.stop("auth");
-    game.scene.stop("bomberman");
-    game.scene.start(isLoggedIn() ? "selector" : "auth");
 });
