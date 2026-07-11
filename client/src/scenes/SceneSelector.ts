@@ -192,9 +192,7 @@ export class SceneSelector extends Phaser.Scene {
                     <small>需先部署官方 dglab-websocket-simple v2 服务。</small>
                 </label>
                 <div class="device-command-fields" data-role="command-websocket-field">
-                    <label>指令 WebSocket 地址
-                        <input data-role="command-websocket-url" value="${escapeHtml(connection.commandWebsocketUrl)}" placeholder="ws://103.236.55.92:43001" />
-                    </label>
+                    <small>固定服务地址：<code>ws://103.236.55.92:43001</code></small>
                     <label>UID
                         <input data-role="command-uid" value="${escapeHtml(connection.commandUid)}" placeholder="123456 或 game_123456" />
                     </label>
@@ -219,7 +217,6 @@ export class SceneSelector extends Phaser.Scene {
         const websocketField = modal.querySelector<HTMLElement>("[data-role='websocket-field']")!;
         const websocketUrl = modal.querySelector<HTMLInputElement>("[data-role='websocket-url']")!;
         const commandWebsocketField = modal.querySelector<HTMLElement>("[data-role='command-websocket-field']")!;
-        const commandWebsocketUrl = modal.querySelector<HTMLInputElement>("[data-role='command-websocket-url']")!;
         const commandUid = modal.querySelector<HTMLInputElement>("[data-role='command-uid']")!;
         const commandToken = modal.querySelector<HTMLInputElement>("[data-role='command-token']")!;
         const status = modal.querySelector<HTMLElement>("[data-role='device-status']")!;
@@ -267,7 +264,6 @@ export class SceneSelector extends Phaser.Scene {
                         ? "websocket"
                         : transport.value === "command_websocket" ? "command_websocket" : "ble",
                     websocketUrl: websocketUrl.value.trim(),
-                    commandWebsocketUrl: commandWebsocketUrl.value.trim(),
                     commandUid: commandUid.value.trim(),
                     commandToken: commandToken.value.trim(),
                 });

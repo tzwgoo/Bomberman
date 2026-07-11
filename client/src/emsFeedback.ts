@@ -25,7 +25,6 @@ export type EmsFeedbackRule = {
 export type EmsConnectionConfig = {
     transport: EmsTransport;
     websocketUrl: string;
-    commandWebsocketUrl: string;
     commandUid: string;
     commandToken: string;
 };
@@ -51,7 +50,7 @@ const BATTERY_CHARACTERISTIC_UUID = "00001500-0000-1000-8000-00805f9b34fb";
 const CONFIG_KEY = "bomberman:ems-feedback-config";
 const DEFAULT_MAX_STRENGTH = 180;
 const DEFAULT_WEBSOCKET_URL = String(import.meta.env.VITE_DGLAB_WS_URL || "ws://127.0.0.1:9999");
-const DEFAULT_COMMAND_WEBSOCKET_URL = String(import.meta.env.VITE_EMS_COMMAND_WS_URL || "ws://103.236.55.92:43001");
+const COMMAND_WEBSOCKET_URL = "ws://103.236.55.92:43001";
 const DGLAB_PAIRING_PREFIX = "https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#";
 const DGLAB_WAVE_HEX = "0A0A0A0A64646464";
 
@@ -143,7 +142,7 @@ class EmsFeedbackController {
             return;
         }
         if (connection.transport === "command_websocket") {
-            await this.connectCommandWebSocket(connection.commandWebsocketUrl, connection.commandUid, connection.commandToken);
+            await this.connectCommandWebSocket(connection.commandUid, connection.commandToken);
             return;
         }
         await this.connectBluetooth();
@@ -370,15 +369,17 @@ class EmsFeedbackController {
         });
     }
 
-    private async connectCommandWebSocket(rawUrl: string, uid: string, token: string) {
-        const websocketUrl = normalizeCommandWebSocketUrl(rawUrl);
+    private async connectCommandWebSocket(uid: string, token: string) {
         const normalizedUid = uid.trim();
         const normalizedToken = token.trim();
         if (!normalizedUid || !normalizedToken) {
             throw new Error("指令 WebSocket 需要填写 UID 和 Token");
         }
+        if (window.location.protocol === "https:") {
+            throw new Error("文档中的指令地址是 ws://，HTTPS 页面会阻止连接");
+        }
 
-        const socket = new WebSocket(websocketUrl);
+        const socket = new WebSocket(COMMAND_WEBSOCKET_URL);
         this.setStatus("正在登录指令 WebSocket...");
 
         await new Promise<void>((resolve, reject) => {
@@ -665,7 +666,6 @@ function normalizeConfig(value: Partial<EmsFeedbackConfig>): EmsFeedbackConfig {
         connection: {
             transport: transport === "websocket" || transport === "command_websocket" ? transport : "ble",
             websocketUrl: String(connection?.websocketUrl || DEFAULT_WEBSOCKET_URL).trim(),
-            commandWebsocketUrl: String(connection?.commandWebsocketUrl || DEFAULT_COMMAND_WEBSOCKET_URL).trim(),
             commandUid: String(connection?.commandUid || "").trim(),
             commandToken: String(connection?.commandToken || "").trim(),
         },
@@ -838,22 +838,6 @@ function normalizeWebSocketUrl(value: string) {
         throw new Error("DG-LAB WebSocket 地址不能包含路径、参数或锚点");
     }
     return url.toString().replace(/\/$/, "");
-}
-
-function normalizeCommandWebSocketUrl(value: string) {
-    let url: URL;
-    try {
-        url = new URL(value.trim());
-    } catch {
-        throw new Error("请输入有效的指令 WebSocket 地址");
-    }
-    if (url.protocol !== "ws:" && url.protocol !== "wss:") {
-        throw new Error("指令 WebSocket 地址必须以 ws:// 或 wss:// 开头");
-    }
-    if (window.location.protocol === "https:" && url.protocol !== "wss:") {
-        throw new Error("HTTPS 页面必须使用 wss:// 指令地址");
-    }
-    return url.toString();
 }
 
 function parseWebSocketMessage(value: unknown): Record<string, any> | null {

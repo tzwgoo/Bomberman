@@ -306,16 +306,19 @@ DG-LAB 脉冲主机支持两种连接方式：
 
 - BLE：浏览器直接连接郊狼 2.0 或 3.0。
 - WebSocket：部署 `dglab-websocket-simple` v2 后，在客户端配置服务地址；仅支持郊狼 3.0。
-- 指令 WebSocket：用于 YYC-DJ 类设备，填写服务地址、UID、Token；登录后按游戏事件发送对应 `commandId`。
+- 指令 WebSocket：用于 YYC-DJ 类设备，固定连接 `ws://103.236.55.92:43001`，填写 UID、Token 后登录，并按游戏事件发送对应 `commandId`。
+
+DG-LAB WebSocket 后端的完整部署步骤见 [dglab-websocket-backend-deployment.md](dglab-websocket-backend-deployment.md)。
 
 客户端可通过环境变量提供默认地址：
 
 ```env
 VITE_DGLAB_WS_URL="wss://ws.example.com"
-VITE_EMS_COMMAND_WS_URL="wss://command.example.com"
 ```
 
-正式 HTTPS 页面必须使用 `wss://`。连接后在首页“设备连接”使用 DG-LAB APP 的 SOCKET 功能扫码绑定。
+正式 HTTPS 页面中的 DG-LAB 服务必须使用 `wss://`。连接后在首页“设备连接”使用 DG-LAB APP 的 SOCKET 功能扫码绑定。
+
+YYC-DJ 指令服务使用文档给出的固定 `ws://` 地址，浏览器会在 HTTPS 页面阻止混合内容连接；请在 HTTP、localhost 或原生应用环境中使用。
 
 指令 WebSocket 的 `commandId` 在对战大厅“EMS反馈”中逐事件配置。默认使用事件名：`bomb_placed`、`bomb_exploded`、`death`、`round_win`、`round_lose`、`power_up`。
 
