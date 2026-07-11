@@ -475,9 +475,7 @@ export class BombermanScene extends Phaser.Scene {
                     <label>毫秒
                         <input type="number" min="1" max="5000" data-field="durationMs" value="${rule.durationMs}" />
                     </label>
-                    <label class="ems-command-id">commandId
-                        <input type="text" data-field="commandId" value="${escapeHtmlAttribute(rule.commandId)}" placeholder="${rule.eventType}" />
-                    </label>
+                    <input type="hidden" data-field="commandId" value="${escapeHtmlAttribute(rule.commandId)}" />
                 </div>
             </section>
         `;
