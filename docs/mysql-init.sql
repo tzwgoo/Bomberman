@@ -1,4 +1,4 @@
--- Bomberman-Yokonex MySQL 初始化 DDL
+-- Bomberman-Yokonex MySQL 初始化 DDL（包含单账号会话和邮箱验证码）
 -- 用途：不用 Prisma 迁移时，直接初始化数据库和业务表结构。
 -- 注意：如果使用本文件初始化同一个库，不要再重复执行 prisma migrate deploy。
 

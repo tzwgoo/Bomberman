@@ -264,6 +264,14 @@ npm --prefix server exec prisma migrate deploy
 
 本次账号升级包含单账号会话和邮箱验证码迁移。迁移后会新增用户邮箱字段、当前会话字段以及邮箱验证码表。
 
+如果生产环境明确不使用 Prisma 迁移，也可以执行可重复运行的升级脚本：
+
+```bash
+mysql -u root -p < docs/mysql-auth-upgrade.sql
+```
+
+同一个环境只选择 Prisma 迁移或升级 SQL 其中一种，不要混用。
+
 生产环境不要执行 `prisma migrate dev`。
 
 Prisma 不会自动生成数据库降级脚本。任何迁移执行前都必须完成数据库备份。
