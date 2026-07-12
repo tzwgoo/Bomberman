@@ -34,6 +34,30 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
+const landscapeButton = document.querySelector<HTMLButtonElement>("[data-action='request-landscape']");
+const landscapeStatus = document.querySelector<HTMLElement>("[data-role='landscape-status']");
+
+landscapeButton?.addEventListener("click", async () => {
+    void soundManager.unlock();
+
+    // 移动浏览器要求由用户操作触发全屏，进入全屏后才允许申请锁定横屏。
+    try {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+        }
+    } catch {
+        // iOS 等浏览器不支持页面全屏，继续尝试横屏并保留手动旋转兜底。
+    }
+
+    try {
+        await screen.orientation?.lock?.("landscape");
+    } catch {
+        if (landscapeStatus) {
+            landscapeStatus.textContent = "浏览器无法自动旋转，请开启系统自动旋转后横向转动手机。";
+        }
+    }
+});
+
 document.querySelector<HTMLAnchorElement>("[data-action='main-menu']")?.addEventListener("click", async (event) => {
     event.preventDefault();
     void soundManager.unlock();

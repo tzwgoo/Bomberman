@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>炸弹人</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0;}
@@ -42,6 +42,45 @@
                 linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
             background-size: 32px 32px;
+        }
+
+        .landscape-guard {
+            display: none;
+        }
+
+        .landscape-guard-card {
+            width: min(360px, calc(100vw - 40px));
+            display: grid;
+            justify-items: center;
+            gap: 14px;
+            padding: 24px;
+            color: var(--ink);
+            text-align: center;
+            background: var(--panel-strong);
+            border-radius: 14px;
+            box-shadow: 0 0 0 1px var(--line), var(--shadow);
+        }
+
+        .landscape-guard-icon {
+            font-size: 52px;
+            line-height: 1;
+            transform: rotate(90deg);
+        }
+
+        .landscape-guard-card p {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .landscape-guard-card button {
+            min-height: 42px;
+            padding: 0 18px;
+            color: #101820;
+            background: var(--gold);
+            border: 0;
+            border-radius: 8px;
+            font-weight: 800;
         }
 
         a { color: var(--gold); text-decoration: none; }
@@ -1656,6 +1695,21 @@
                 min-height: 76px;
             }
         }
+        @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+            html,
+            body {
+                overflow: hidden;
+            }
+            .landscape-guard {
+                position: fixed;
+                inset: 0;
+                z-index: 1000;
+                display: grid;
+                place-items: center;
+                padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+                background: #0e141b;
+            }
+        }
         @media (orientation: landscape) and (max-height: 520px) {
             .touch-controls {
                 left: min(50vw, 430px);
@@ -1689,6 +1743,15 @@
     </style>
 </head>
 <body>
+
+    <section class="landscape-guard" aria-label="横屏提示">
+        <div class="landscape-guard-card">
+            <div class="landscape-guard-icon" aria-hidden="true">📱</div>
+            <h2>请横屏游玩</h2>
+            <p data-role="landscape-status">点击按钮进入横屏；若没有自动旋转，请开启系统自动旋转后横向转动手机。</p>
+            <button type="button" data-action="request-landscape">进入横屏</button>
+        </div>
+    </section>
 
     <div class="menu">
         <div>
