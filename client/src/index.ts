@@ -23,7 +23,8 @@ const config: Phaser.Types.Core.GameConfig = {
         width: 800,
         height: 600,
     },
-    backgroundColor: '#b6d53c',
+    // 场景创建前先使用应用深色背景，避免 Android WebView 首帧闪现模板默认绿屏。
+    backgroundColor: "#0e141b",
     physics: {
         default: "arcade"
     },
