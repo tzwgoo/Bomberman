@@ -3,7 +3,7 @@ import { Client, Room, getStateCallbacks } from "@colyseus/sdk";
 
 import { BACKEND_HTTP_URL, BACKEND_URL } from "../backend";
 import { BOMBERMAN_MAP_OPTIONS, type BombermanMapOption } from "../bombermanMaps";
-import { isLoggedIn, loadAuthState } from "../authStore";
+import { clearAuthState, isLoggedIn, loadAuthState } from "../authStore";
 import { loadProfileState, recordMatchResult, type PlayerProfile } from "../profileStore";
 import { soundManager } from "../soundManager";
 import { EMS_FEEDBACK_EVENT_LABELS, emsFeedbackController, type EmsFeedbackConfig, type EmsFeedbackEventType, type EmsFeedbackRule } from "../emsFeedback";
@@ -1273,8 +1273,18 @@ export class BombermanScene extends Phaser.Scene {
             this.setNetworkStatus("房间连接异常", message ?? "请返回大厅后重试");
         });
 
-        room.onLeave((_code, reason) => {
+        room.onLeave((code, reason) => {
             if (this.room !== room) {
+                return;
+            }
+
+            if (code === 4001) {
+                // 同账号在别处重新登录时，旧客户端清除令牌并回到登录页。
+                clearAuthState();
+                window.sessionStorage.removeItem("bomberman:auto-match");
+                window.location.hash = "";
+                this.room = undefined;
+                this.scene.start("auth");
                 return;
             }
 

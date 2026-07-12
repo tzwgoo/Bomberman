@@ -202,11 +202,26 @@ AUTH_REQUIRED_FOR_ROOMS="1"
 AUTH_SM4_KEY="与客户端一致的32位十六进制密钥"
 AUTH_SM4_IV="与客户端一致的32位十六进制向量"
 ADMIN_USERNAMES="admin"
+EMAIL_CODE_SECRET="与JWT_SECRET不同的强随机密钥"
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="465"
+SMTP_SECURE="true"
+SMTP_USER="完整邮箱地址"
+SMTP_PASS="SMTP授权码"
+SMTP_FROM="Bomberman <完整邮箱地址>"
 ```
 
 不要用 `.env.example` 覆盖现有 `server/.env`。
 
 `ADMIN_USERNAMES` 用于控制 [EMS 在线设备管理](ems-device-admin.md) 权限。升级后管理员需要重新登录，主菜单才会显示设备后台入口。
+
+邮箱验证码配置注意事项：
+
+- 在邮箱后台开启 `IMAP/SMTP服务`，不需要开启 `POP3/SMTP服务`。
+- `SMTP_PASS` 必须填写 SMTP 授权码，不能填写邮箱登录密码。
+- 465 端口通常设置 `SMTP_SECURE="true"`，587 端口通常设置为 `false`。
+- `SMTP_FROM` 中的邮箱地址应与 `SMTP_USER` 一致。
+- 部分云厂商限制 25 端口，优先使用 465 或 587。
 
 ### 9.2 客户端
 
@@ -246,6 +261,8 @@ npm --prefix server exec prisma migrate status
 ```bash
 npm --prefix server exec prisma migrate deploy
 ```
+
+本次账号升级包含单账号会话和邮箱验证码迁移。迁移后会新增用户邮箱字段、当前会话字段以及邮箱验证码表。
 
 生产环境不要执行 `prisma migrate dev`。
 
@@ -354,12 +371,13 @@ npm --prefix server exec prisma migrate status
 ### 13.3 游戏主流程
 
 1. 打开游戏首页。
-2. 注册或登录。
-3. 创建房间。
-4. 两名玩家加入并准备。
-5. 完成一局游戏。
-6. 查看战绩、积分和排行榜。
-7. 检查浏览器控制台没有持续报错。
+2. 使用未注册邮箱发送验证码并完成注册。
+3. 退出后分别验证密码登录和邮箱验证码登录。
+4. 用另一个客户端登录同一账号，确认旧客户端被退出。
+5. 创建房间，两名玩家加入并准备。
+6. 完成一局游戏。
+7. 查看战绩、积分和排行榜。
+8. 检查浏览器控制台和服务端日志没有持续报错。
 
 ### 13.4 设备反馈
 
@@ -430,7 +448,7 @@ mysql -u root -p bomberman_yokonex < /opt/backups/bomberman-before-device-feedba
 PORT=45170 pm2 restart bomberman-server --update-env
 ```
 
-本次设备反馈版本没有新增 Prisma 迁移，通常不需要回滚数据库。
+本次账号升级包含 Prisma 迁移。旧代码通常可以忽略新增表和字段；只有确认旧代码不兼容时，才按备份恢复数据库。
 
 ### 14.4 DG-LAB 新服务
 

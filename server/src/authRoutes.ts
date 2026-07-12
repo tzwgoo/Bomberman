@@ -1,7 +1,9 @@
 import type { Application, Request, Response } from "express";
 
+import { AuthError } from "./authError.js";
 import { decryptAuthPayload } from "./authCrypto.js";
-import { AuthError, getUserByToken, loginUser, registerUser, serializeUser, updateUserProfile } from "./authService.js";
+import { getUserByToken, loginUser, loginUserByEmailCode, registerUser, revokeAuthToken, serializeUser, updateUserProfile } from "./authService.js";
+import { requestEmailCode } from "./emailVerificationService.js";
 import { getLeaderboard, getUserStats } from "./matchStatsService.js";
 
 type AuthedRequest = Request & {
@@ -15,6 +17,20 @@ export function registerAuthRoutes(app: Application) {
 
   app.post("/auth/login", asyncRoute(async (req, res) => {
     res.json(await loginUser(decryptAuthPayload(req.body ?? {})));
+  }));
+
+  app.post("/auth/login/email", asyncRoute(async (req, res) => {
+    res.json(await loginUserByEmailCode(decryptAuthPayload(req.body ?? {})));
+  }));
+
+  app.post("/auth/email-code", asyncRoute(async (req, res) => {
+    await requestEmailCode(decryptAuthPayload(req.body ?? {}));
+    res.status(204).end();
+  }));
+
+  app.post("/auth/logout", asyncRoute(async (req, res) => {
+    await revokeAuthToken(bearerToken(req));
+    res.status(204).end();
   }));
 
   app.get("/me", requireAuth, asyncRoute(async (req: AuthedRequest, res) => {

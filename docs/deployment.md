@@ -94,6 +94,13 @@ AUTH_REQUIRED_FOR_ROOMS="1"
 AUTH_SM4_KEY="0123456789abcdeffedcba9876543210"
 AUTH_SM4_IV="fedcba98765432100123456789abcdef"
 ADMIN_USERNAMES="admin"
+EMAIL_CODE_SECRET="请改成另一段足够长的随机字符串"
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="465"
+SMTP_SECURE="true"
+SMTP_USER="完整邮箱地址"
+SMTP_PASS="SMTP授权码"
+SMTP_FROM="Bomberman <完整邮箱地址>"
 ```
 
 说明：
@@ -104,8 +111,21 @@ ADMIN_USERNAMES="admin"
 - `AUTH_SM4_KEY`：注册 / 登录请求 SM4 解密密钥，必须是 32 位十六进制。
 - `AUTH_SM4_IV`：注册 / 登录请求 SM4 CBC IV，必须是 32 位十六进制。
 - `ADMIN_USERNAMES`：允许进入 EMS 设备后台的账号名，多个账号用英文逗号分隔。
+- `EMAIL_CODE_SECRET`：邮箱验证码摘要密钥，必须使用与 `JWT_SECRET` 不同的强随机字符串。
+- `SMTP_HOST`：邮箱服务商提供的 SMTP 地址。
+- `SMTP_PORT` / `SMTP_SECURE`：通常 465 对应 `true`，587 对应 `false`。
+- `SMTP_USER`：完整发件邮箱地址。
+- `SMTP_PASS`：邮箱后台生成的 SMTP 授权码，不是邮箱登录密码。
+- `SMTP_FROM`：邮件发件人，邮箱地址应与 `SMTP_USER` 一致。
 
 `AUTH_SM4_KEY` 和 `AUTH_SM4_IV` 必须和前端构建配置保持一致。
+
+配置前先进入邮箱后台：
+
+1. 开启 `IMAP/SMTP服务`，不需要开启 `POP3/SMTP服务`。
+2. 生成 SMTP 客户端授权码。
+3. 把授权码填入 `SMTP_PASS`，不要填写邮箱登录密码。
+4. 确认云服务器允许访问 SMTP 端口；部分云厂商会限制 25 端口，优先使用 465 或 587。
 
 ## 6. 初始化表结构
 
@@ -127,6 +147,7 @@ mysql -uroot -p < docs/mysql-init.sql
 - `docs/mysql-init.sql` 已包含 `CREATE DATABASE` 和全部业务表。
 - Prisma 迁移和 DDL 二选一即可。
 - 不要在同一个空库上重复执行两套初始化。
+- 邮箱验证码版本会新增用户邮箱、验证码记录和单账号会话字段，旧库升级时必须执行最新迁移。
 
 ## 7. 无域名部署
 
@@ -530,11 +551,11 @@ npm --prefix server exec prisma migrate status
 
 打开页面后检查：
 
-1. 注册账号。
-2. 登录账号。
-3. 创建房间。
-4. 两个账号进入同一房间。
-5. 完成一局。
+1. 使用未注册邮箱发送注册验证码，确认能收到邮件。
+2. 使用正确验证码注册账号。
+3. 退出后分别测试用户名密码登录和邮箱验证码登录。
+4. 再次使用已消费的验证码，确认系统拒绝登录。
+5. 创建房间，让两个账号进入同一房间并完成一局。
 6. 打开个人信息，查看战绩是否更新。
 
 ### 10.4 EMS 设备
@@ -610,3 +631,15 @@ AUTH_REQUIRED_FOR_ROOMS="1"
 ```
 
 然后重启服务端。
+
+### 邮箱验证码发送失败
+
+检查：
+
+- 邮箱后台是否已经开启 `IMAP/SMTP服务`。
+- `SMTP_HOST` 和端口是否与邮箱服务商文档一致。
+- 465 端口是否配置 `SMTP_SECURE="true"`，587 端口是否配置为 `false`。
+- `SMTP_PASS` 是否为 SMTP 授权码，而不是邮箱登录密码。
+- `SMTP_FROM` 中的邮箱地址是否与 `SMTP_USER` 一致。
+- 修改 `server/.env` 后是否使用 `pm2 restart bomberman-server --update-env` 重启。
+- 服务端日志中是否有连接超时、认证失败或发件人被拒绝信息。

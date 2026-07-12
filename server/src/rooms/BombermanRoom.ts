@@ -2,6 +2,7 @@ import { Client, Room } from "colyseus";
 import { MapSchema, Schema, type } from "@colyseus/schema";
 
 import { verifyAuthToken, type AuthRoomUser } from "../authService.js";
+import { registerAuthClient, unregisterAuthClient } from "../authSessionRegistry.js";
 import { recordDeviceAdminResult, registerOnlineDevice, unregisterOnlineDevice, updateOnlineDevice } from "../deviceAdminService.js";
 import { saveMatchResult } from "../matchPersistence.js";
 import { DEFAULT_BOMBERMAN_MAP_ID, resolveBombermanMap, type BombermanMapDefinition } from "./BombermanMaps.js";
@@ -276,14 +277,19 @@ export class BombermanRoom extends Room {
     });
   }
 
-  onAuth(_client: Client, options: BombermanJoinOptions = {}) {
+  async onAuth(_client: Client, options: BombermanJoinOptions = {}) {
     if (this.roomPassword && this.normalizePassword(options.password) !== this.roomPassword) {
       return false;
     }
 
-    const authUser = verifyAuthToken(options.token);
+    const authUser = await verifyAuthToken(options.token);
     if (authUser) {
       return authUser;
+    }
+
+    // 携带了令牌却校验失败时不允许降级成游客，防止被替换的旧会话重新进房。
+    if (options.token) {
+      return false;
     }
 
     // 开发测试默认允许游客进房；正式服可用环境变量强制房间必须登录。
@@ -309,6 +315,7 @@ export class BombermanRoom extends Room {
 
     this.state.players.set(client.sessionId, player);
     if (authUser) {
+      registerAuthClient(authUser.userId, authUser.authSessionId, client);
       registerOnlineDevice({
         userId: authUser.userId,
         username: authUser.username,
@@ -325,6 +332,7 @@ export class BombermanRoom extends Room {
   onLeave(client: Client) {
     const player = this.state.players.get(client.sessionId);
     if (player?.userId) {
+      unregisterAuthClient(player.userId, client);
       unregisterOnlineDevice(player.userId, this.roomId, client.sessionId);
     }
     this.state.players.delete(client.sessionId);

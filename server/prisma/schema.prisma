@@ -11,6 +11,7 @@ datasource db {
 model User {
   id           String        @id @default(cuid())
   username     String        @unique
+  email        String?       @unique
   passwordHash String        @map("password_hash")
   nickname     String
   avatar       String?
@@ -18,6 +19,7 @@ model User {
   roleId       String?       @map("role_id")
   characterKey String?       @map("character_key")
   currentScore Int           @default(1000) @map("current_score")
+  activeSessionId String?    @map("active_session_id")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   matchPlayers MatchPlayer[]
@@ -25,6 +27,22 @@ model User {
   wonMatches   Match[]       @relation("MatchWinner")
 
   @@map("users")
+}
+
+// 邮箱验证码独立保存，支持注册前验证，也便于多实例服务共享状态。
+model EmailVerificationCode {
+  id         String    @id @default(cuid())
+  email      String
+  purpose    String
+  codeHash   String    @map("code_hash")
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email, purpose, createdAt])
+  @@index([expiresAt])
+  @@map("email_verification_codes")
 }
 
 // 整场比赛结果。对局过程仍在内存里，结算后统一写入这里。

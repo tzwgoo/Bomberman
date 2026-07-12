@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-import { isLoggedIn, loginAccount, registerAccount } from "../authStore";
+import { isLoggedIn, loginAccount, loginAccountByEmail, registerAccount, sendEmailCode } from "../authStore";
 import { soundManager } from "../soundManager";
 
 type AuthMode = "login" | "register";
@@ -8,6 +8,7 @@ type AuthMode = "login" | "register";
 export class AuthScene extends Phaser.Scene {
     panel?: HTMLElement;
     mode: AuthMode = "login";
+    loginMethod: "password" | "email" = "password";
 
     constructor() {
         super({ key: "auth", active: true });
@@ -37,23 +38,36 @@ export class AuthScene extends Phaser.Scene {
 
     createAuthPanel() {
         const isRegister = this.mode === "register";
+        const isEmailLogin = !isRegister && this.loginMethod === "email";
         const panel = document.createElement("section");
         panel.className = "auth-panel";
         panel.innerHTML = `
             <form class="auth-card">
                 <p>BOMBERMAN ACCOUNT</p>
-                <h2>${isRegister ? "注册账号" : "账号登录"}</h2>
-                <label for="auth-username">用户名</label>
-                <input id="auth-username" name="username" type="text" autocomplete="username" maxlength="24" placeholder="3-24 位字母数字下划线" />
+                <h2>${isRegister ? "注册账号" : isEmailLogin ? "邮箱验证码登录" : "账号登录"}</h2>
+                ${!isEmailLogin ? `
+                    <label for="auth-username">用户名</label>
+                    <input id="auth-username" name="username" type="text" autocomplete="username" maxlength="24" placeholder="3-24 位字母数字下划线" />
+                ` : ""}
                 ${isRegister ? `
                     <label for="auth-nickname">昵称</label>
                     <input id="auth-nickname" name="nickname" type="text" maxlength="16" placeholder="游戏内显示名称" />
                 ` : ""}
-                <label for="auth-password">密码</label>
-                <input id="auth-password" name="password" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" maxlength="64" placeholder="至少 6 位" />
+                ${isRegister || isEmailLogin ? `
+                    <label for="auth-email">邮箱</label>
+                    <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="name@example.com" />
+                    <label for="auth-email-code">邮箱验证码</label>
+                    <input id="auth-email-code" name="emailCode" inputmode="numeric" maxlength="6" placeholder="6 位验证码" />
+                    <button type="button" class="secondary auth-code-button" data-action="send-code">发送验证码</button>
+                ` : ""}
+                ${!isEmailLogin ? `
+                    <label for="auth-password">密码</label>
+                    <input id="auth-password" name="password" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" maxlength="64" placeholder="至少 6 位" />
+                ` : ""}
                 <div class="auth-actions">
                     <button type="submit">${isRegister ? "注册并登录" : "登录"}</button>
                     <button type="button" class="secondary" data-action="switch">${isRegister ? "已有账号" : "注册账号"}</button>
+                    ${!isRegister ? `<button type="button" class="secondary" data-action="login-method">${isEmailLogin ? "密码登录" : "邮箱验证码登录"}</button>` : ""}
                 </div>
                 <span data-role="message"></span>
             </form>
@@ -80,11 +94,15 @@ export class AuthScene extends Phaser.Scene {
         const username = String(formData.get("username") ?? "");
         const password = String(formData.get("password") ?? "");
         const nickname = String(formData.get("nickname") ?? "");
+        const email = String(formData.get("email") ?? "");
+        const emailCode = String(formData.get("emailCode") ?? "");
 
         try {
             this.setMessage(this.mode === "register" ? "正在注册..." : "正在登录...");
             if (this.mode === "register") {
-                await registerAccount(username, password, nickname);
+                await registerAccount(username, email, emailCode, password, nickname);
+            } else if (this.loginMethod === "email") {
+                await loginAccountByEmail(email, emailCode);
             } else {
                 await loginAccount(username, password);
             }
@@ -106,6 +124,26 @@ export class AuthScene extends Phaser.Scene {
             this.mode = this.mode === "login" ? "register" : "login";
             this.destroyAuthPanel();
             this.createAuthPanel();
+        } else if (target.dataset.action === "login-method") {
+            this.loginMethod = this.loginMethod === "password" ? "email" : "password";
+            this.destroyAuthPanel();
+            this.createAuthPanel();
+        } else if (target.dataset.action === "send-code") {
+            void this.handleSendCode(target);
+        }
+    }
+
+    async handleSendCode(button: HTMLElement) {
+        const email = this.panel?.querySelector<HTMLInputElement>("[name='email']")?.value ?? "";
+        try {
+            button.setAttribute("disabled", "true");
+            this.setMessage("正在发送验证码...");
+            await sendEmailCode(email, this.mode === "register" ? "register" : "login");
+            this.setMessage("验证码已发送，请检查邮箱");
+        } catch (error) {
+            this.setMessage(error instanceof Error ? error.message : "验证码发送失败");
+        } finally {
+            button.removeAttribute("disabled");
         }
     }
 

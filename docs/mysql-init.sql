@@ -11,6 +11,7 @@ USE `bomberman_yokonex`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` VARCHAR(191) NOT NULL,
   `username` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NULL,
   `password_hash` VARCHAR(191) NOT NULL,
   `nickname` VARCHAR(191) NOT NULL,
   `avatar` VARCHAR(191) NULL,
@@ -18,10 +19,26 @@ CREATE TABLE IF NOT EXISTS `users` (
   `role_id` VARCHAR(191) NULL,
   `character_key` VARCHAR(191) NULL,
   `current_score` INTEGER NOT NULL DEFAULT 1000,
+  `active_session_id` VARCHAR(191) NULL,
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `users_username_key` (`username`)
+  UNIQUE KEY `users_username_key` (`username`),
+  UNIQUE KEY `users_email_key` (`email`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `email_verification_codes` (
+  `id` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `purpose` VARCHAR(191) NOT NULL,
+  `code_hash` VARCHAR(191) NOT NULL,
+  `attempts` INTEGER NOT NULL DEFAULT 0,
+  `expires_at` DATETIME(3) NOT NULL,
+  `consumed_at` DATETIME(3) NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `email_verification_codes_email_purpose_created_at_idx` (`email`, `purpose`, `created_at`),
+  KEY `email_verification_codes_expires_at_idx` (`expires_at`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `matches` (

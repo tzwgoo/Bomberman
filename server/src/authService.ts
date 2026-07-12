@@ -1,12 +1,19 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
 import type { User } from "@prisma/client";
 
+import { AuthError } from "./authError.js";
+import { disconnectReplacedSessions, disconnectSession } from "./authSessionRegistry.js";
 import { isDatabaseConfigured, jwtSecret, prisma } from "./db.js";
+import { verifyEmailCode } from "./emailVerificationService.js";
+
+export { AuthError } from "./authError.js";
 
 export type AuthUserDto = {
   id: string;
   username: string;
+  email: string | null;
   nickname: string;
   avatar: string | null;
   color: string | null;
@@ -20,28 +27,25 @@ export type AuthRoomUser = {
   userId: string;
   username: string;
   nickname: string;
+  authSessionId: string;
 };
 
-export class AuthError extends Error {
-  status: number;
-
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-
-export async function registerUser(input: { username?: string; password?: string; nickname?: string }) {
+export async function registerUser(input: { username?: string; email?: string; emailCode?: string; password?: string; nickname?: string }) {
   ensureDatabaseReady();
   const username = normalizeUsername(input.username);
   const password = normalizePassword(input.password);
   const nickname = normalizeNickname(input.nickname || username);
+  if (await prisma.user.findUnique({ where: { username }, select: { id: true } })) {
+    throw new AuthError(409, "用户名已存在");
+  }
+  const email = await verifyEmailCode(input.email, input.emailCode, "register");
   const passwordHash = await bcrypt.hash(password, 10);
 
   try {
     const user = await prisma.user.create({
       data: {
         username,
+        email,
         passwordHash,
         nickname,
         avatar: "🙂",
@@ -54,7 +58,7 @@ export async function registerUser(input: { username?: string; password?: string
     return createAuthResponse(user);
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new AuthError(409, "用户名已存在");
+      throw new AuthError(409, "用户名或邮箱已存在");
     }
 
     throw error;
@@ -74,23 +78,65 @@ export async function loginUser(input: { username?: string; password?: string })
   return createAuthResponse(user);
 }
 
+export async function loginUserByEmailCode(input: { email?: string; emailCode?: string }) {
+  ensureDatabaseReady();
+  const email = await verifyEmailCode(input.email, input.emailCode, "login");
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    throw new AuthError(401, "该邮箱未绑定账号");
+  }
+  return createAuthResponse(user);
+}
+
 export async function getUserByToken(token?: string) {
-  const roomUser = verifyAuthToken(token);
-  if (!roomUser || !isDatabaseConfigured()) {
+  const authUser = decodeAuthToken(token);
+  if (!authUser || !isDatabaseConfigured()) {
     return null;
   }
 
-  return prisma.user.findUnique({ where: { id: roomUser.userId } });
+  // 一次查询同时校验用户和当前会话，避免并发登录时旧请求穿过两次查询之间的空隙。
+  return prisma.user.findFirst({
+    where: { id: authUser.userId, activeSessionId: authUser.authSessionId },
+  });
 }
 
-export function verifyAuthToken(token?: string): AuthRoomUser | null {
+export async function verifyAuthToken(token?: string): Promise<AuthRoomUser | null> {
+  const authUser = decodeAuthToken(token);
+  if (!authUser || !isDatabaseConfigured()) {
+    return null;
+  }
+
+  // JWT 合法还不够，必须与数据库中的当前会话一致，旧令牌才会立即失效。
+  const activeUser = await prisma.user.findFirst({
+    where: { id: authUser.userId, activeSessionId: authUser.authSessionId },
+    select: { id: true },
+  });
+  return activeUser ? authUser : null;
+}
+
+export async function revokeAuthToken(token?: string) {
+  const authUser = decodeAuthToken(token);
+  if (!authUser || !isDatabaseConfigured()) {
+    return;
+  }
+
+  const result = await prisma.user.updateMany({
+    where: { id: authUser.userId, activeSessionId: authUser.authSessionId },
+    data: { activeSessionId: null },
+  });
+  if (result.count > 0) {
+    disconnectSession(authUser.userId, authUser.authSessionId);
+  }
+}
+
+function decodeAuthToken(token?: string): AuthRoomUser | null {
   if (!token) {
     return null;
   }
 
   try {
     const payload = jwt.verify(token, jwtSecret());
-    if (!payload || typeof payload === "string" || typeof payload.sub !== "string") {
+    if (!payload || typeof payload === "string" || typeof payload.sub !== "string" || typeof payload.sid !== "string") {
       return null;
     }
 
@@ -98,6 +144,7 @@ export function verifyAuthToken(token?: string): AuthRoomUser | null {
       userId: payload.sub,
       username: String(payload.username ?? ""),
       nickname: String(payload.nickname ?? ""),
+      authSessionId: payload.sid,
     };
   } catch {
     return null;
@@ -128,12 +175,20 @@ export async function updateUserProfile(userId: string, input: {
   return serializeUser(user);
 }
 
-export function createAuthResponse(user: User) {
+export async function createAuthResponse(user: User) {
+  const authSessionId = randomUUID();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { activeSessionId: authSessionId },
+  });
+  disconnectReplacedSessions(user.id, authSessionId);
+
   const safeUser = serializeUser(user);
   const token = jwt.sign(
     {
       username: user.username,
       nickname: user.nickname,
+      sid: authSessionId,
     },
     jwtSecret(),
     {
@@ -149,6 +204,7 @@ export function serializeUser(user: User): AuthUserDto {
   return {
     id: user.id,
     username: user.username,
+    email: user.email,
     nickname: user.nickname,
     avatar: user.avatar,
     color: user.color,

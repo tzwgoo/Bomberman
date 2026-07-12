@@ -54,6 +54,10 @@ AUTH_REQUIRED_FOR_ROOMS="0"
 - `DATABASE_URL`：MySQL 连接地址。
 - `JWT_SECRET`：JWT 签名密钥，生产环境必须改成强随机字符串。
 - `AUTH_REQUIRED_FOR_ROOMS`：设为 `1` 时，未登录用户不能进入房间。
+- `EMAIL_CODE_SECRET`：验证码摘要密钥，生产环境必须使用强随机字符串。
+- `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`：SMTP 服务器地址、端口和 TLS 开关。465 端口会自动启用 TLS。
+- `SMTP_USER`、`SMTP_PASS`：SMTP 登录账号和密码。
+- `SMTP_FROM`：验证码邮件发件人，例如 `Bomberman <no-reply@example.com>`。
 
 ## 数据库
 
@@ -113,6 +117,8 @@ build
 
 - `POST /auth/register`：注册
 - `POST /auth/login`：登录
+- `POST /auth/login/email`：邮箱验证码登录
+- `POST /auth/email-code`：发送注册或登录验证码
 - `GET /me`：查询当前用户
 - `PUT /me/profile`：更新个人资料
 - `GET /me/stats`：查询个人战绩和积分

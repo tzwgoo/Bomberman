@@ -5,6 +5,7 @@ import { updateProfile, type PlayerProfile } from "./profileStore";
 export type AuthUser = {
     id: string;
     username: string;
+    email: string | null;
     nickname: string;
     avatar: string | null;
     color: string | null;
@@ -61,12 +62,37 @@ export function clearAuthState() {
     window.localStorage.removeItem(STORAGE_KEY);
 }
 
-export async function registerAccount(username: string, password: string, nickname: string) {
-    return authRequest("/auth/register", { username, password, nickname });
+export async function registerAccount(username: string, email: string, emailCode: string, password: string, nickname: string) {
+    return authRequest("/auth/register", { username, email, emailCode, password, nickname });
 }
 
 export async function loginAccount(username: string, password: string) {
     return authRequest("/auth/login", { username, password });
+}
+
+export async function loginAccountByEmail(email: string, emailCode: string) {
+    return authRequest("/auth/login/email", { email, emailCode });
+}
+
+export async function sendEmailCode(email: string, purpose: "register" | "login") {
+    await authRequestWithoutState("/auth/email-code", { email, purpose });
+}
+
+export async function logoutAccount() {
+    const token = loadAuthState()?.token;
+    try {
+        if (token) {
+            await fetch(`${BACKEND_HTTP_URL}/auth/logout`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+        }
+    } catch {
+        // 服务端不可用时仍允许本机退出；服务端会话会由有效期和后续登录替换。
+    } finally {
+        // 即使网络异常也清理本机状态，避免用户无法退出。
+        clearAuthState();
+    }
 }
 
 export async function fetchMyStats() {
@@ -123,6 +149,17 @@ async function authRequest(path: string, body: Record<string, string>) {
     return state;
 }
 
+async function authRequestWithoutState(path: string, body: Record<string, string>) {
+    const response = await fetch(`${BACKEND_HTTP_URL}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(encryptAuthPayload(body)),
+    });
+    if (!response.ok) {
+        throw new Error(await errorMessage(response));
+    }
+}
+
 async function authFetch(path: string, options: RequestInit = {}) {
     const response = await fetch(`${BACKEND_HTTP_URL}${path}`, {
         ...options,
@@ -134,6 +171,9 @@ async function authFetch(path: string, options: RequestInit = {}) {
     });
 
     if (!response.ok) {
+        if (response.status === 401) {
+            clearAuthState();
+        }
         throw new Error(await errorMessage(response));
     }
 

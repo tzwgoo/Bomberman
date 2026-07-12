@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import QRCode from "qrcode";
 
-import { clearAuthState, isLoggedIn, loadAuthState } from "../authStore";
+import { isLoggedIn, loadAuthState, logoutAccount } from "../authStore";
 import { emsFeedbackController } from "../emsFeedback";
 import { soundManager } from "../soundManager";
 
@@ -277,7 +277,7 @@ export class SceneSelector extends Phaser.Scene {
                 window.location.hash = item.action;
                 this.runScene(item.action);
             } else if (item.action === "logout") {
-                this.logout();
+                void this.logout();
             } else {
                 this.showDeviceModal();
             }
@@ -419,8 +419,8 @@ export class SceneSelector extends Phaser.Scene {
         this.runScene("auth");
     }
 
-    logout() {
-        clearAuthState();
+    async logout() {
+        await logoutAccount();
         window.sessionStorage.removeItem("bomberman:auto-match");
         window.sessionStorage.removeItem("bomberman:auth-redirect");
         window.location.hash = "";
