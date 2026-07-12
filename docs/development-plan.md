@@ -561,6 +561,9 @@ match_players
 - 已生成 Android 工程。
 - 已支持 MuMu 模拟器访问电脑本机后端。
 - 已构建 Android Debug APK。
+- 已补充 Android 原生横屏配置。
+- 已支持通过 `npm run android:build:debug` 一键同步并构建 Debug APK。
+- 已补充 Android 测试服环境变量模板和打包说明。
 - 已安装到 MuMu 模拟器并完成启动烟测。
 - 已安装 Capacitor iOS 依赖。
 - 已补充 iOS 打包说明：`docs/ios-build.md`。

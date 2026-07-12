@@ -7,7 +7,12 @@
     "install:all": "npm --prefix server install && npm --prefix client install",
     "dev:server": "npm --prefix server start",
     "dev:client": "npm --prefix client start",
-    "build": "npm --prefix server run build && npm --prefix client run build"
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "android:sync": "npm --prefix client run android:sync",
+    "android:build:debug": "npm --prefix client run android:build:debug"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "license": "UNLICENSED"
 }

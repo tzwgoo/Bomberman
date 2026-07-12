@@ -1711,6 +1711,55 @@
             }
         }
         @media (orientation: landscape) and (max-height: 520px) {
+            div.menu {
+                min-height: 48px;
+                padding-block: 4px;
+            }
+            #phaser-example {
+                min-height: calc(100dvh - 48px);
+            }
+            html.selector-page,
+            body.selector-page {
+                overflow-y: auto;
+                overscroll-behavior-y: contain;
+                touch-action: pan-y;
+            }
+            body.selector-page #phaser-example {
+                height: auto;
+                min-height: calc(100dvh - 48px);
+                overflow: visible;
+            }
+            body.selector-page canvas {
+                /* 入口页由场景处理拖动滚动；离开后恢复 Phaser 的游戏触控。 */
+                touch-action: none !important;
+            }
+            .auth-panel {
+                top: 48px;
+                padding: 10px 14px 14px;
+            }
+            .auth-card {
+                width: min(720px, 100%);
+                grid-template-columns: 88px minmax(0, 1fr);
+                align-items: center;
+                gap: 8px 12px;
+                padding: 14px;
+            }
+            .auth-card > p,
+            .auth-card > h2,
+            .auth-card > .auth-actions,
+            .auth-card > span {
+                grid-column: 1 / -1;
+            }
+            .auth-card h2 {
+                font-size: 24px;
+            }
+            .auth-card input {
+                min-height: 38px;
+            }
+            .auth-card button {
+                min-height: 36px;
+                padding-block: 7px;
+            }
             .touch-controls {
                 left: min(50vw, 430px);
                 justify-content: space-around;
@@ -1738,6 +1787,115 @@
             .touch-button.bomb {
                 min-width: 76px;
                 min-height: 76px;
+            }
+        }
+        @media (orientation: landscape) and (max-height: 520px) and (hover: none) and (pointer: coarse) {
+            body.game-playing {
+                overflow: hidden;
+                touch-action: none;
+            }
+            body.game-playing div.menu {
+                display: none;
+            }
+            body.game-playing #phaser-example {
+                width: min(100vw, calc(100dvh * 4 / 3));
+                height: 100dvh;
+                min-height: 0;
+                margin: 0 auto;
+                overflow: hidden;
+            }
+            body.game-playing canvas {
+                touch-action: none !important;
+                box-shadow: none;
+            }
+            body.game-playing .touch-controls {
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                justify-content: space-between;
+                align-items: flex-end;
+                padding: 0 max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+            }
+            body.game-playing .touch-pad {
+                --mobile-control-size: clamp(88px, 15vw, 112px);
+                width: var(--mobile-control-size);
+                height: var(--mobile-control-size);
+            }
+            body.game-playing .touch-stick-track {
+                width: calc(var(--mobile-control-size) - 26px);
+                height: calc(var(--mobile-control-size) - 26px);
+            }
+            body.game-playing .touch-stick-knob {
+                width: 42px;
+                height: 42px;
+            }
+            body.game-playing .touch-actions {
+                grid-template-columns: 72px;
+                gap: 0;
+            }
+            body.game-playing .touch-button.skill {
+                display: none;
+            }
+            body.game-playing .touch-button.bomb {
+                min-width: 72px;
+                min-height: 72px;
+                font-size: 24px;
+            }
+            body.game-playing .sound-toggle {
+                top: max(10px, env(safe-area-inset-top));
+                right: max(10px, env(safe-area-inset-right));
+                min-width: 42px;
+                min-height: 42px;
+            }
+            body.game-playing .powerup-panel,
+            body.game-playing.hud-side-rail .powerup-panel {
+                top: calc(62px + env(safe-area-inset-top));
+                right: max(8px, env(safe-area-inset-right));
+                bottom: auto;
+                width: clamp(96px, 15vw, 124px);
+            }
+            body.game-playing .powerup-grid,
+            body.game-playing.hud-side-rail .powerup-grid {
+                grid-template-columns: 1fr;
+                gap: 4px;
+                padding: 6px;
+            }
+            body.game-playing .powerup-grid span,
+            body.game-playing.hud-side-rail .powerup-grid span {
+                display: grid;
+                grid-template-columns: 18px 1fr auto;
+                align-items: center;
+                gap: 4px;
+                min-height: 30px;
+                padding: 3px 5px;
+                text-align: left;
+                background: rgba(255,255,255,0.06);
+                border-radius: 5px;
+            }
+            body.game-playing .powerup-grid i,
+            body.game-playing.hud-side-rail .powerup-grid i {
+                font-size: 15px;
+            }
+            body.game-playing .powerup-grid strong,
+            body.game-playing.hud-side-rail .powerup-grid strong {
+                font-size: 14px;
+            }
+            body.game-playing .network-banner {
+                top: max(10px, env(safe-area-inset-top));
+                right: auto;
+                left: max(10px, env(safe-area-inset-left));
+                width: min(220px, calc(100vw - 120px));
+            }
+            body.game-playing .result-panel {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                width: min(360px, calc(100vw - 24px));
+                max-height: calc(100dvh - 24px);
+                overflow: auto;
+                padding: 14px;
+                transform: translate(-50%, -50%);
             }
         }
     </style>

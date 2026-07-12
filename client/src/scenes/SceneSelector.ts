@@ -22,6 +22,15 @@ export class SceneSelector extends Phaser.Scene {
     ];
 
     deviceModal?: HTMLElement;
+    selectorHeight = 600;
+    previousTouchCapture = true;
+    selectorTouchStartHandler?: (event: TouchEvent) => void;
+    selectorTouchMoveHandler?: (event: TouchEvent) => void;
+    selectorTouchEndHandler?: () => void;
+    selectorTouchActive = false;
+    selectorTouchStartY = 0;
+    selectorScrollStartY = 0;
+    ignoreMenuTapUntil = 0;
 
     constructor() {
         super({ key: "selector" });
@@ -33,7 +42,27 @@ export class SceneSelector extends Phaser.Scene {
             return;
         }
 
-        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroyDeviceModal());
+        document.documentElement.classList.add("selector-page");
+        document.body.classList.add("selector-page");
+        this.previousTouchCapture = this.input.manager.touch?.capture ?? true;
+        if (this.input.manager.touch) {
+            // 入口页需要把纵向滑动交给浏览器，不能让 Phaser 阻止默认触摸行为。
+            this.input.manager.touch.capture = false;
+        }
+        this.setupSelectorTouchScroll();
+        window.scrollTo(0, 0);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.destroyDeviceModal();
+            this.destroySelectorTouchScroll();
+            document.documentElement.classList.remove("selector-page");
+            document.body.classList.remove("selector-page");
+            if (this.input.manager.touch) {
+                this.input.manager.touch.capture = this.previousTouchCapture;
+            }
+            // 入口页允许纵向滚动，进入游戏前必须归零，避免游戏画布继承页面偏移。
+            window.scrollTo(0, 0);
+            this.scale.setGameSize(800, 600);
+        });
 
         const sceneKey = window.location.hash.substring(1);
         // 只允许正式入口直达，旧调试场景不再作为外部入口开放。
@@ -43,8 +72,10 @@ export class SceneSelector extends Phaser.Scene {
         }
 
         this.syncUserMenuItem();
+        this.selectorHeight = this.calculateSelectorHeight();
+        this.scale.setGameSize(800, this.selectorHeight);
         this.cameras.main.setBackgroundColor(0x0e141b);
-        this.drawBackground();
+        this.drawBackground(this.selectorHeight);
         this.drawHeader();
         this.drawMenu();
         if (window.sessionStorage.getItem("bomberman:open-device") === "1") {
@@ -53,14 +84,70 @@ export class SceneSelector extends Phaser.Scene {
         }
     }
 
-    drawBackground() {
-        this.add.rectangle(400, 300, 800, 600, 0x0e141b);
+    calculateSelectorHeight() {
+        const rows = Math.ceil(this.menuItems.length / 2);
+        // 高度跟随菜单行数变化，新增入口后无需再修改移动端滚动样式。
+        return Math.max(600, 230 + Math.max(0, rows - 1) * 132 + 100 + 20);
+    }
+
+    setupSelectorTouchScroll() {
+        this.selectorTouchStartHandler = (event) => {
+            if (event.touches.length !== 1) {
+                this.selectorTouchActive = false;
+                return;
+            }
+
+            this.selectorTouchActive = true;
+            this.selectorTouchStartY = event.touches[0].clientY;
+            this.selectorScrollStartY = window.scrollY;
+        };
+        this.selectorTouchMoveHandler = (event) => {
+            if (!this.selectorTouchActive || event.touches.length !== 1) {
+                return;
+            }
+
+            const deltaY = this.selectorTouchStartY - event.touches[0].clientY;
+            if (Math.abs(deltaY) >= 6) {
+                // 滑动后的短时间内忽略 Phaser 卡片点击，避免松手时误进菜单。
+                this.ignoreMenuTapUntil = Date.now() + 300;
+                window.scrollTo(0, this.selectorScrollStartY + deltaY);
+            }
+        };
+        this.selectorTouchEndHandler = () => {
+            this.selectorTouchActive = false;
+        };
+
+        this.game.canvas.addEventListener("touchstart", this.selectorTouchStartHandler, { passive: true });
+        window.addEventListener("touchmove", this.selectorTouchMoveHandler, { passive: true });
+        window.addEventListener("touchend", this.selectorTouchEndHandler, { passive: true });
+        window.addEventListener("touchcancel", this.selectorTouchEndHandler, { passive: true });
+    }
+
+    destroySelectorTouchScroll() {
+        if (this.selectorTouchStartHandler) {
+            this.game.canvas.removeEventListener("touchstart", this.selectorTouchStartHandler);
+        }
+        if (this.selectorTouchMoveHandler) {
+            window.removeEventListener("touchmove", this.selectorTouchMoveHandler);
+        }
+        if (this.selectorTouchEndHandler) {
+            window.removeEventListener("touchend", this.selectorTouchEndHandler);
+            window.removeEventListener("touchcancel", this.selectorTouchEndHandler);
+        }
+        this.selectorTouchActive = false;
+        this.selectorTouchStartHandler = undefined;
+        this.selectorTouchMoveHandler = undefined;
+        this.selectorTouchEndHandler = undefined;
+    }
+
+    drawBackground(height: number) {
+        this.add.rectangle(400, height / 2, 800, height, 0x0e141b);
 
         for (let x = 0; x <= 800; x += 40) {
-            this.add.line(0, 0, x, 0, x, 600, 0x243447, 0.28).setOrigin(0);
+            this.add.line(0, 0, x, 0, x, height, 0x243447, 0.28).setOrigin(0);
         }
 
-        for (let y = 0; y <= 600; y += 40) {
+        for (let y = 0; y <= height; y += 40) {
             this.add.line(0, 0, 0, y, 800, y, 0x243447, 0.28).setOrigin(0);
         }
 
@@ -102,6 +189,9 @@ export class SceneSelector extends Phaser.Scene {
                 fontStyle: "bold",
             }).setOrigin(0.5);
             adminButton.on("pointerup", () => {
+                if (Date.now() < this.ignoreMenuTapUntil) {
+                    return;
+                }
                 soundManager.play("button");
                 window.location.hash = "admin-device";
                 this.runScene("admin-device");
@@ -169,6 +259,10 @@ export class SceneSelector extends Phaser.Scene {
         });
 
         bg.on("pointerup", () => {
+            if (Date.now() < this.ignoreMenuTapUntil) {
+                container.setScale(1);
+                return;
+            }
             container.setScale(1.015);
             void soundManager.unlock();
             soundManager.play("button");
@@ -316,7 +410,8 @@ export class SceneSelector extends Phaser.Scene {
     }
 
     runScene(key: string) {
-        this.game.scene.switch("selector", key);
+        // 正常关闭入口场景，确保动态画布高度和页面滚动状态在进入游戏前恢复。
+        this.scene.start(key);
     }
 
     redirectToAuth() {

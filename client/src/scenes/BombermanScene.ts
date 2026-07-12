@@ -198,6 +198,9 @@ export class BombermanScene extends Phaser.Scene {
             this.destroyMatchPanel();
             this.destroyNetworkBanner();
             this.destroyTouchControls();
+            document.body.classList.remove("game-playing");
+            window.scrollTo(0, 0);
+            window.requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
         });
     }
 
@@ -1937,10 +1940,20 @@ export class BombermanScene extends Phaser.Scene {
             return;
         }
 
-        // 移动端按钮只在正式开局后显示，避免遮挡大厅操作。
-        this.touchControls.hidden = this.room?.state.phase !== "playing";
+        const isPlaying = this.room?.state.phase === "playing";
+        const supportsTouch = window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+        const layoutChanged = document.body.classList.contains("game-playing") !== isPlaying;
+
+        // 对战阶段切换到全屏游戏布局；大厅和桌面端不显示移动触控按钮。
+        document.body.classList.toggle("game-playing", isPlaying);
+        this.touchControls.hidden = !isPlaying || !supportsTouch;
         if (this.touchControls.hidden) {
             this.resetTouchStick();
+        }
+
+        if (layoutChanged) {
+            window.scrollTo(0, 0);
+            window.requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
         }
     }
 

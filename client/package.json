@@ -6,7 +6,14 @@
   "scripts": {
     "start": "vite --host 0.0.0.0 --port 45179",
     "build": "vite build",
+    "build:android": "vite build --mode android",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:build:debug": "node scripts/build-android-debug.mjs",
+    "android:open": "cap open android",
     "preview": "vite preview --host 0.0.0.0 --port 45179"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "keywords": [
     "colyseus",

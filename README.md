@@ -94,6 +94,7 @@ npm run dev:client
 npm run build
 npm --prefix server test
 npm --prefix server run ratings:rebuild
+npm run android:build:debug
 ```
 
 说明：
@@ -101,6 +102,7 @@ npm --prefix server run ratings:rebuild
 - `npm run build`：构建服务端和客户端。
 - `npm --prefix server test`：运行服务端测试。
 - `npm --prefix server run ratings:rebuild`：根据历史对局重算积分。
+- `npm run android:build:debug`：同步 Android 工程并生成 Debug APK。
 
 ## 数据库
 
@@ -127,6 +129,7 @@ CREATE DATABASE bomberman_yokonex
 - DG-LAB WebSocket 后端部署：[docs/dglab-websocket-backend-deployment.md](docs/dglab-websocket-backend-deployment.md)
 - commandId 与游戏事件映射：[docs/command-id-event-mapping.md](docs/command-id-event-mapping.md)
 - EMS 在线设备管理：[docs/ems-device-admin.md](docs/ems-device-admin.md)
+- Android 打包：[docs/android-build.md](docs/android-build.md)
 - 参考项目：[docs/references.md](docs/references.md)
 
 ## 部署
